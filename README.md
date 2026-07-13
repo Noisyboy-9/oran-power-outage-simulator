@@ -3,8 +3,9 @@
 A custom dependable-networking simulator built with Python 3.12.
 
 The repository currently implements the core `Point`, `User`, and `RU` domain
-models. RU control policies, orchestration behavior, and metric calculations
-remain scaffolded for later phases.
+models plus always-active, timestamp-staggered, and battery-threshold-staggered
+RU control policies. Simulation orchestration and metric calculations remain
+scaffolded for later phases.
 
 ## Domain Models
 
@@ -15,6 +16,22 @@ remain scaffolded for later phases.
   active or sleep status, configured consumption rates, and status-based
   battery depletion.
 - Invalid constructor values raise `DomainValidationError`.
+
+## RU Controllers
+
+Each controller receives a list of RUs and the current timestamp, then updates
+RU statuses in place for that timestamp. An RU is activated only when it has at
+least enough battery for one active timestamp.
+
+- `AlwaysActiveController` activates every eligible RU.
+- `StaggeredActiveController` alternates even- and odd-ID groups every ten
+  global timestamps.
+- `ThresholdStaggeredActiveController` keeps all eligible RUs active until every
+  RU reaches a configured percentage of its initial capacity, then permanently
+  follows the global staggered schedule.
+
+Battery depletion remains the RU's responsibility through `update_battery()`;
+controllers only select statuses.
 
 ## Setup
 
