@@ -2,7 +2,19 @@
 
 A custom dependable-networking simulator built with Python 3.12.
 
-This repository currently contains only the project scaffold. Simulation models, RU control policies, orchestration behavior, and metric calculations will be implemented in later phases.
+The repository currently implements the core `Point`, `User`, and `RU` domain
+models. RU control policies, orchestration behavior, and metric calculations
+remain scaffolded for later phases.
+
+## Domain Models
+
+- `Point` represents non-negative Cartesian coordinates and calculates distance
+  to another point.
+- `User` represents a simulation user with a positive integer ID.
+- `RU` represents a radio unit with a positive integer ID, battery state,
+  active or sleep status, configured consumption rates, and status-based
+  battery depletion.
+- Invalid constructor values raise `DomainValidationError`.
 
 ## Setup
 
