@@ -4,7 +4,7 @@
 
 **Goal:** Encapsulate RU battery and status state and implement always-active, timestamp-staggered, and battery-threshold-staggered RU controllers.
 
-**Architecture:** `RU` owns its private mutable state and exposes explicit read/status-update methods. Three independent controller classes implement one abstract `update(rus, timestamp)` interface, with small shared helpers for timestamp validation, activation eligibility, and staggered parity selection. Standard-library module loggers record selected-but-ineligible RUs in the two staggered policies.
+**Architecture:** `RU` owns its private mutable state and exposes explicit read/status-update methods. Three independent controller classes implement one abstract `update(rus, timestamp)` interface. An internal `controllers/utils.py` module centralizes timestamp validation, activation eligibility, staggered parity selection, and selected-RU status/log handling. Standard-library module loggers record selected-but-ineligible RUs in the two staggered policies.
 
 **Tech Stack:** Python 3.12, standard-library `abc`, `enum`, and `logging`; pytest; Ruff; uv.
 
@@ -26,7 +26,8 @@
 
 - Modify `src/simulator/domain/ru.py`: privately store battery, initial capacity, and status; expose the approved access methods.
 - Modify `tests/domain/test_ru.py`: migrate existing assertions and cover state encapsulation and status validation.
-- Modify `src/simulator/controllers/base.py`: define `RUController` and the small policy-neutral helpers.
+- Modify `src/simulator/controllers/base.py`: define only the `RUController` interface.
+- Create `src/simulator/controllers/utils.py`: define policy-neutral validation, selection, and selected-RU status/log helpers.
 - Modify `src/simulator/controllers/always_active.py`: implement the always-active policy.
 - Create `tests/controllers/test_always_active.py`: cover the common interface, eligibility, no-op, and timestamp validation.
 - Modify `src/simulator/controllers/staggered_active.py`: implement global timestamp parity and informational logging.
@@ -262,11 +263,12 @@ git commit -m "refactor: encapsulate RU state"
 **Files:**
 - Create: `tests/controllers/test_always_active.py`
 - Modify: `src/simulator/controllers/base.py`
+- Create: `src/simulator/controllers/utils.py`
 - Modify: `src/simulator/controllers/always_active.py`
 
 **Interfaces:**
 - Consumes: Task 1's `RU` access methods, public `RU.id`, and public `RU.active_consumption`.
-- Produces: abstract `RUController.update(rus: list[RU], timestamp: int) -> None`, `_validate_timestamp(timestamp: int) -> None`, `_can_activate(ru: RU) -> bool`, `_is_selected_for_timestamp(ru: RU, timestamp: int) -> bool`, and `AlwaysActiveController.update(...)`.
+- Produces: abstract `RUController.update(rus: list[RU], timestamp: int) -> None`; `_validate_timestamp(timestamp: int) -> None`, `_can_activate(ru: RU) -> bool`, `_is_selected_for_timestamp(ru: RU, timestamp: int) -> bool`, `_set_selected_status(ru: RU, timestamp: int, controller_name: str, logger: logging.Logger | None = None) -> None`; and `AlwaysActiveController.update(...)`.
 
 - [ ] **Step 1: Write failing always-active and interface tests**
 
@@ -359,7 +361,7 @@ uv run pytest tests/controllers/test_always_active.py -v
 Expected: collection fails because `RUController` and `AlwaysActiveController`
 are not defined.
 
-- [ ] **Step 3: Implement the abstract interface and shared helpers**
+- [ ] **Step 3: Implement the abstract interface**
 
 Replace `src/simulator/controllers/base.py` with:
 
@@ -373,15 +375,25 @@ class RUController(ABC):
     @abstractmethod
     def update(self, rus: list[RU], timestamp: int) -> None:
         """Update RU statuses for the supplied timestamp."""
+```
 
-    @staticmethod
-    def _validate_timestamp(timestamp: int) -> None:
-        if (
-            isinstance(timestamp, bool)
-            or not isinstance(timestamp, int)
-            or timestamp < 0
-        ):
-            raise ValueError("timestamp must be a non-negative integer")
+- [ ] **Step 4: Implement the internal controller utilities**
+
+Create `src/simulator/controllers/utils.py`:
+
+```python
+import logging
+
+from simulator.domain.ru import RU, RUStatus
+
+
+def _validate_timestamp(timestamp: int) -> None:
+    if (
+        isinstance(timestamp, bool)
+        or not isinstance(timestamp, int)
+        or timestamp < 0
+    ):
+        raise ValueError("timestamp must be a non-negative integer")
 
 
 def _can_activate(ru: RU) -> bool:
@@ -391,26 +403,48 @@ def _can_activate(ru: RU) -> bool:
 def _is_selected_for_timestamp(ru: RU, timestamp: int) -> bool:
     selected_id_parity = (timestamp // 10) % 2
     return ru.id % 2 == selected_id_parity
+
+
+def _set_selected_status(
+    ru: RU,
+    timestamp: int,
+    controller_name: str,
+    logger: logging.Logger | None = None,
+) -> None:
+    if _can_activate(ru):
+        ru.set_status(RUStatus.ACTIVE)
+        return
+
+    ru.set_status(RUStatus.SLEEP)
+    if logger is not None:
+        logger.info(
+            "%s could not activate RU %s at timestamp %s: battery=%s, required=%s",
+            controller_name,
+            ru.id,
+            timestamp,
+            ru.get_battery(),
+            ru.active_consumption,
+        )
 ```
 
-- [ ] **Step 4: Implement the always-active policy**
+- [ ] **Step 5: Implement the always-active policy**
 
 Replace `src/simulator/controllers/always_active.py` with:
 
 ```python
-from simulator.controllers.base import RUController, _can_activate
-from simulator.domain.ru import RU, RUStatus
+from simulator.controllers.base import RUController
+from simulator.controllers.utils import _set_selected_status, _validate_timestamp
+from simulator.domain.ru import RU
 
 
 class AlwaysActiveController(RUController):
     def update(self, rus: list[RU], timestamp: int) -> None:
-        self._validate_timestamp(timestamp)
+        _validate_timestamp(timestamp)
         for ru in rus:
-            status = RUStatus.ACTIVE if _can_activate(ru) else RUStatus.SLEEP
-            ru.set_status(status)
+            _set_selected_status(ru, timestamp, type(self).__name__)
 ```
 
-- [ ] **Step 5: Run focused tests and verify they pass**
+- [ ] **Step 6: Run focused tests and verify they pass**
 
 Run:
 
@@ -420,7 +454,7 @@ uv run pytest tests/controllers/test_always_active.py -v
 
 Expected: all always-active tests pass.
 
-- [ ] **Step 6: Run RU and always-active tests together**
+- [ ] **Step 7: Run RU and always-active tests together**
 
 Run:
 
@@ -430,10 +464,10 @@ uv run pytest tests/domain/test_ru.py tests/controllers/test_always_active.py -v
 
 Expected: both test modules pass.
 
-- [ ] **Step 7: Commit the controller base and always-active policy**
+- [ ] **Step 8: Commit the controller base, utilities, and always-active policy**
 
 ```bash
-git add src/simulator/controllers/base.py src/simulator/controllers/always_active.py tests/controllers/test_always_active.py
+git add src/simulator/controllers/base.py src/simulator/controllers/utils.py src/simulator/controllers/always_active.py tests/controllers/test_always_active.py
 git commit -m "feat: add always-active RU controller"
 ```
 
@@ -446,7 +480,7 @@ git commit -m "feat: add always-active RU controller"
 - Modify: `src/simulator/controllers/staggered_active.py`
 
 **Interfaces:**
-- Consumes: `RUController._validate_timestamp`, `_can_activate(ru)`, `_is_selected_for_timestamp(ru, timestamp)`, and Task 1's RU access methods.
+- Consumes: `RUController`, `_validate_timestamp(timestamp)`, `_is_selected_for_timestamp(ru, timestamp)`, `_set_selected_status(...)`, and Task 1's RU access methods.
 - Produces: `StaggeredActiveController.update(rus: list[RU], timestamp: int) -> None` and module logger `simulator.controllers.staggered_active`.
 
 - [ ] **Step 1: Write failing staggered-policy tests**
@@ -570,10 +604,11 @@ Replace `src/simulator/controllers/staggered_active.py` with:
 ```python
 import logging
 
-from simulator.controllers.base import (
-    RUController,
-    _can_activate,
+from simulator.controllers.base import RUController
+from simulator.controllers.utils import (
     _is_selected_for_timestamp,
+    _set_selected_status,
+    _validate_timestamp,
 )
 from simulator.domain.ru import RU, RUStatus
 
@@ -582,24 +617,17 @@ logger = logging.getLogger(__name__)
 
 class StaggeredActiveController(RUController):
     def update(self, rus: list[RU], timestamp: int) -> None:
-        self._validate_timestamp(timestamp)
+        _validate_timestamp(timestamp)
         for ru in rus:
             if not _is_selected_for_timestamp(ru, timestamp):
                 ru.set_status(RUStatus.SLEEP)
                 continue
 
-            if _can_activate(ru):
-                ru.set_status(RUStatus.ACTIVE)
-                continue
-
-            ru.set_status(RUStatus.SLEEP)
-            logger.info(
-                "%s could not activate RU %s at timestamp %s: battery=%s, required=%s",
-                type(self).__name__,
-                ru.id,
+            _set_selected_status(
+                ru,
                 timestamp,
-                ru.get_battery(),
-                ru.active_consumption,
+                type(self).__name__,
+                logger,
             )
 ```
 
@@ -639,7 +667,7 @@ git commit -m "feat: add staggered RU controller"
 - Modify: `src/simulator/controllers/threshold_staggered_active.py`
 
 **Interfaces:**
-- Consumes: `RUController._validate_timestamp`, `_can_activate(ru)`, `_is_selected_for_timestamp(ru, timestamp)`, and `RU.get_initial_capacity()`.
+- Consumes: `RUController`, `_validate_timestamp(timestamp)`, `_is_selected_for_timestamp(ru, timestamp)`, `_set_selected_status(...)`, and `RU.get_initial_capacity()`.
 - Produces: `ThresholdStaggeredActiveController(threshold_percentage: float)` and `update(rus: list[RU], timestamp: int) -> None` with permanent private `_staggered_started` state.
 
 - [ ] **Step 1: Write failing threshold-policy tests**
@@ -815,10 +843,11 @@ Replace `src/simulator/controllers/threshold_staggered_active.py` with:
 ```python
 import logging
 
-from simulator.controllers.base import (
-    RUController,
-    _can_activate,
+from simulator.controllers.base import RUController
+from simulator.controllers.utils import (
     _is_selected_for_timestamp,
+    _set_selected_status,
+    _validate_timestamp,
 )
 from simulator.domain.ru import RU, RUStatus
 
@@ -837,7 +866,7 @@ class ThresholdStaggeredActiveController(RUController):
         self._staggered_started = False
 
     def update(self, rus: list[RU], timestamp: int) -> None:
-        self._validate_timestamp(timestamp)
+        _validate_timestamp(timestamp)
         if not rus:
             return
 
@@ -856,18 +885,11 @@ class ThresholdStaggeredActiveController(RUController):
                 ru.set_status(RUStatus.SLEEP)
                 continue
 
-            if _can_activate(ru):
-                ru.set_status(RUStatus.ACTIVE)
-                continue
-
-            ru.set_status(RUStatus.SLEEP)
-            logger.info(
-                "%s could not activate RU %s at timestamp %s: battery=%s, required=%s",
-                type(self).__name__,
-                ru.id,
+            _set_selected_status(
+                ru,
                 timestamp,
-                ru.get_battery(),
-                ru.active_consumption,
+                type(self).__name__,
+                logger,
             )
 ```
 

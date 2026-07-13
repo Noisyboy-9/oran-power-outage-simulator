@@ -57,8 +57,10 @@ the RU access methods for battery and status state.
 
 `AlwaysActiveController`, `StaggeredActiveController`, and
 `ThresholdStaggeredActiveController` implement this interface independently.
-They may use small shared helpers, but policy classes do not inherit behavior
-from one another.
+Policy classes do not inherit behavior from one another. Small policy-neutral
+operations live in an internal `controllers/utils.py` module used by all three
+controllers: timestamp validation, activation eligibility, global staggered
+selection, and setting a selected RU active-or-sleep with optional logging.
 
 Controller timestamps must be non-negative integers. Invalid timestamps raise
 `ValueError`. Passing an empty RU list is a valid no-op for every controller.
@@ -121,8 +123,9 @@ the staggered policy. An empty RU list does not trigger the transition.
 ## Logging
 
 The staggered and threshold-staggered modules use Python's standard-library
-`logging` package with module-level loggers. No logging dependency or
-configuration abstraction is introduced.
+`logging` package with module-level loggers passed to the shared selected-RU
+helper. The always-active controller uses the same helper without a logger. No
+logging dependency or configuration abstraction is introduced.
 
 When either controller selects an RU but cannot activate it because its battery
 is below active consumption, it emits an `INFO` record containing:
