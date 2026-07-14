@@ -22,19 +22,19 @@ class ThresholdStaggeredActiveController(RUController):
         self.threshold_percentage = float(threshold_percentage)
         self._staggered_started = False
 
-    def update(self, rus: list[RU], timestamp: int) -> None:
+    def update(self, RUs: list[RU], timestamp: int) -> None:
         _validate_timestamp(timestamp)
-        if not rus:
+        if not RUs:
             return
 
         if not self._staggered_started and all(
             ru.get_battery() / ru.get_initial_capacity() * 100
             <= self.threshold_percentage
-            for ru in rus
+            for ru in RUs
         ):
             self._staggered_started = True
 
-        for ru in rus:
+        for ru in RUs:
             selected = not self._staggered_started or _is_selected_for_timestamp(
                 ru, timestamp
             )

@@ -4,7 +4,7 @@ from simulator.domain.ru import RU
 
 
 class AlwaysActiveController(RUController):
-    def update(self, rus: list[RU], timestamp: int) -> None:
+    def update(self, RUs: list[RU], timestamp: int) -> None:
         _validate_timestamp(timestamp)
-        for ru in rus:
+        for ru in RUs:
             _set_selected_status(ru, timestamp, type(self).__name__)

@@ -1,3 +1,5 @@
+from inspect import signature
+
 from simulator.controllers import (
     AlwaysActiveController,
     RUController,
@@ -14,3 +16,16 @@ def test_controller_classes_are_publicly_importable() -> None:
         ThresholdStaggeredActiveController.__name__
         == "ThresholdStaggeredActiveController"
     )
+
+
+def test_controller_updates_name_the_ru_list_RUs() -> None:
+    controller_types = (
+        RUController,
+        AlwaysActiveController,
+        StaggeredActiveController,
+        ThresholdStaggeredActiveController,
+    )
+
+    for controller_type in controller_types:
+        parameter_names = list(signature(controller_type.update).parameters)
+        assert parameter_names == ["self", "RUs", "timestamp"]

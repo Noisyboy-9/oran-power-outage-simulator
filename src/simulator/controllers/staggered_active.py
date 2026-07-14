@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 class StaggeredActiveController(RUController):
-    def update(self, rus: list[RU], timestamp: int) -> None:
+    def update(self, RUs: list[RU], timestamp: int) -> None:
         _validate_timestamp(timestamp)
-        for ru in rus:
+        for ru in RUs:
             if not _is_selected_for_timestamp(ru, timestamp):
                 ru.set_status(RUStatus.SLEEP)
                 continue
