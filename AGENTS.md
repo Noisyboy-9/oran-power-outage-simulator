@@ -18,10 +18,10 @@ These rules are mandatory:
 
 ## Repository Layout
 
-- `src/simulator/domain/`: core simulation objects such as `Point`, `RU`, and `User`
+- `src/simulator/domain/`: core simulation objects such as `MapCell`, `RU`, and `User`
 - `src/simulator/controllers/`: the RU-controller abstraction and activation policies
 - `src/simulator/metrics/`: the metric-collector abstraction and individual collectors
-- `src/simulator/environment.py`: ownership of entities and complete simulation state
+- `src/simulator/environment/`: configuration and ownership of complete simulation state
 - `src/simulator/simulation_controller.py`: time-step and component orchestration
 - `tests/`: pytest tests organized to mirror the source package
 - `docs/superpowers/`: approved design specifications and implementation plans
