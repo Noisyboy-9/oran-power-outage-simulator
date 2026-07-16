@@ -9,6 +9,7 @@ description = "A custom simulator for dependable networking experiments"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "networkx>=3.6.1",
     "structlog>=26.1.0",
 ]
 
