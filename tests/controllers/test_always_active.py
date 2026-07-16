@@ -1,5 +1,4 @@
 import pytest
-from structlog.testing import capture_logs
 
 from simulator.controllers.always_active import AlwaysActiveController
 from simulator.controllers.base import RUController
@@ -51,13 +50,12 @@ def test_sleeps_ru_with_insufficient_battery() -> None:
     assert ru.get_status() is RUStatus.SLEEP
 
 
-def test_underpowered_ru_does_not_log() -> None:
+def test_underpowered_ru_remains_asleep() -> None:
     ru = make_ru(battery=1.0, status=RUStatus.ACTIVE)
 
-    with capture_logs() as logs:
-        AlwaysActiveController().update([ru], timestamp=4)
+    AlwaysActiveController().update([ru], timestamp=4)
 
-    assert logs == []
+    assert ru.get_status() is RUStatus.SLEEP
 
 
 def test_empty_ru_list_is_a_no_op() -> None:

@@ -1,5 +1,4 @@
 import pytest
-from structlog.testing import capture_logs
 
 from simulator.controllers.threshold_staggered_active import (
     ThresholdStaggeredActiveController,
@@ -105,35 +104,20 @@ def test_empty_list_does_not_start_transition() -> None:
     assert even_ru.get_status() is RUStatus.ACTIVE
 
 
-def test_underpowered_ru_logs_info_before_transition() -> None:
+def test_underpowered_ru_sleeps_before_transition() -> None:
     ru = make_ru(1, battery=1.0, active_consumption=2.0)
 
-    with capture_logs() as logs:
-        ThresholdStaggeredActiveController(0.0).update([ru], timestamp=3)
+    ThresholdStaggeredActiveController(0.0).update([ru], timestamp=3)
 
     assert ru.get_status() is RUStatus.SLEEP
-    assert logs == [
-        {
-            "event": "ru_activation_failed",
-            "controller": "ThresholdStaggeredActiveController",
-            "ru_id": 1,
-            "timestamp": 3,
-            "battery": 1.0,
-            "required_battery": 2.0,
-            "log_level": "info",
-        }
-    ]
 
 
-def test_selected_underpowered_ru_logs_info_after_transition() -> None:
+def test_selected_underpowered_ru_sleeps_after_transition() -> None:
     ru = make_ru(2, battery=1.0, active_consumption=2.0)
 
-    with capture_logs() as logs:
-        ThresholdStaggeredActiveController(100.0).update([ru], timestamp=0)
+    ThresholdStaggeredActiveController(100.0).update([ru], timestamp=0)
 
     assert ru.get_status() is RUStatus.SLEEP
-    assert len(logs) == 1
-    assert logs[0]["event"] == "ru_activation_failed"
 
 
 def test_rejects_invalid_timestamp() -> None:

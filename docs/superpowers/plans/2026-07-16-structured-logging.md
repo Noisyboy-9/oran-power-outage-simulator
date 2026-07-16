@@ -14,6 +14,9 @@
 - The hard-coded minimum level is INFO.
 - Accepted events are newline-delimited JSON on standard output with a UTC ISO `logged_at` timestamp, level, and logger name.
 - The `logged_at` field must not overwrite a domain event's simulation `timestamp` field.
+- Loggers are cached on first use because configuration is fixed after startup.
+- Logging configuration, formatting, filtering, event emission, and event absence are intentionally not tested.
+- Task 3 supersedes the logging-test steps from Tasks 1 and 2 while retaining their controller state coverage.
 - `configure_logging() -> None` is called explicitly by the future application entry point and is not called on package import.
 - Do not add environment variables, configuration objects, alternate renderers, log files, or foreign standard-library logging integration.
 - Preserve the always-active controller's existing no-log behavior.
@@ -399,3 +402,131 @@ git commit -m "refactor: migrate controller logs to structlog"
 ```
 
 Expected: the controller migration, updated tests, and README are committed with no unrelated files.
+
+### Task 3: Cache loggers and remove logging tests
+
+**Files:**
+
+- Modify: `src/simulator/logging.py`
+- Delete: `tests/test_logging.py`
+- Modify: `tests/controllers/test_always_active.py`
+- Modify: `tests/controllers/test_staggered_active.py`
+- Modify: `tests/controllers/test_threshold_staggered_active.py`
+- Modify: `docs/superpowers/plans/2026-07-16-structured-logging.md`
+
+**Interfaces:**
+
+- Consumes: the existing hard-coded `configure_logging() -> None` function and controller state tests.
+- Produces: cached logger assembly after first use and a test suite that covers controller state without asserting logging behavior.
+
+- [ ] **Step 1: Enable logger caching**
+
+In `src/simulator/logging.py`, change the final `structlog.configure()` argument to:
+
+```python
+        cache_logger_on_first_use=True,
+```
+
+- [ ] **Step 2: Delete the dedicated logging test module**
+
+Delete `tests/test_logging.py` in full. No replacement logging configuration test is added because logging infrastructure is intentionally outside the test contract.
+
+- [ ] **Step 3: Convert the always-active logging test to state-only coverage**
+
+Remove this import from `tests/controllers/test_always_active.py`:
+
+```python
+from structlog.testing import capture_logs
+```
+
+Replace `test_underpowered_ru_does_not_log` with:
+
+```python
+def test_underpowered_ru_remains_asleep() -> None:
+    ru = make_ru(battery=1.0, status=RUStatus.ACTIVE)
+
+    AlwaysActiveController().update([ru], timestamp=4)
+
+    assert ru.get_status() is RUStatus.SLEEP
+```
+
+- [ ] **Step 4: Convert staggered logging tests to state-only coverage**
+
+Remove this import from `tests/controllers/test_staggered_active.py`:
+
+```python
+from structlog.testing import capture_logs
+```
+
+Replace the two logging-oriented tests with:
+
+```python
+def test_selected_underpowered_ru_sleeps() -> None:
+    ru = make_ru(2, battery=1.0)
+
+    StaggeredActiveController().update([ru], timestamp=7)
+
+    assert ru.get_status() is RUStatus.SLEEP
+
+
+def test_non_selected_ru_sleeps() -> None:
+    ru = make_ru(1, battery=1.0)
+
+    StaggeredActiveController().update([ru], timestamp=0)
+
+    assert ru.get_status() is RUStatus.SLEEP
+```
+
+- [ ] **Step 5: Convert threshold logging tests to state-only coverage**
+
+Remove this import from `tests/controllers/test_threshold_staggered_active.py`:
+
+```python
+from structlog.testing import capture_logs
+```
+
+Replace the two logging-oriented tests with:
+
+```python
+def test_underpowered_ru_sleeps_before_transition() -> None:
+    ru = make_ru(1, battery=1.0, active_consumption=2.0)
+
+    ThresholdStaggeredActiveController(0.0).update([ru], timestamp=3)
+
+    assert ru.get_status() is RUStatus.SLEEP
+
+
+def test_selected_underpowered_ru_sleeps_after_transition() -> None:
+    ru = make_ru(2, battery=1.0, active_consumption=2.0)
+
+    ThresholdStaggeredActiveController(100.0).update([ru], timestamp=0)
+
+    assert ru.get_status() is RUStatus.SLEEP
+```
+
+- [ ] **Step 6: Run complete verification**
+
+Run:
+
+```bash
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+git diff --check
+rg -n "capture_logs|test_logging|does_not_log|logs_info" tests
+```
+
+Expected: the test suite and Ruff checks pass, Git reports no whitespace errors, and `rg` exits with status 1 because no logging-test references remain.
+
+- [ ] **Step 7: Commit the cache and test-policy change**
+
+Run:
+
+```bash
+git add src/simulator/logging.py tests/controllers/test_always_active.py tests/controllers/test_staggered_active.py tests/controllers/test_threshold_staggered_active.py docs/superpowers/plans/2026-07-16-structured-logging.md
+git add -u tests/test_logging.py
+git diff --cached --check
+git commit -m "test: remove logging behavior coverage"
+```
+
+Expected: logger caching, state-only controller tests, deletion of the dedicated logging tests, and the revised implementation plan are committed together.

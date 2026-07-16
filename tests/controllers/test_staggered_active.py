@@ -1,5 +1,4 @@
 import pytest
-from structlog.testing import capture_logs
 
 from simulator.controllers.staggered_active import StaggeredActiveController
 from simulator.domain.ru import RU, RUStatus
@@ -50,34 +49,20 @@ def test_selected_ru_with_exact_battery_is_active() -> None:
     assert ru.get_status() is RUStatus.ACTIVE
 
 
-def test_selected_underpowered_ru_sleeps_and_logs_info() -> None:
+def test_selected_underpowered_ru_sleeps() -> None:
     ru = make_ru(2, battery=1.0)
 
-    with capture_logs() as logs:
-        StaggeredActiveController().update([ru], timestamp=7)
+    StaggeredActiveController().update([ru], timestamp=7)
 
     assert ru.get_status() is RUStatus.SLEEP
-    assert logs == [
-        {
-            "event": "ru_activation_failed",
-            "controller": "StaggeredActiveController",
-            "ru_id": 2,
-            "timestamp": 7,
-            "battery": 1.0,
-            "required_battery": 2.0,
-            "log_level": "info",
-        }
-    ]
 
 
-def test_non_selected_ru_sleeps_without_log() -> None:
+def test_non_selected_ru_sleeps() -> None:
     ru = make_ru(1, battery=1.0)
 
-    with capture_logs() as logs:
-        StaggeredActiveController().update([ru], timestamp=0)
+    StaggeredActiveController().update([ru], timestamp=0)
 
     assert ru.get_status() is RUStatus.SLEEP
-    assert logs == []
 
 
 def test_empty_ru_list_is_a_no_op() -> None:
