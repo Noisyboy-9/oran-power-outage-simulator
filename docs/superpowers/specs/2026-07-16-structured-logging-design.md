@@ -11,7 +11,10 @@ configuration that emits INFO-and-higher events as newline-delimited JSON.
 - Add one public `configure_logging()` function in a focused logging module.
 - Migrate all existing simulator loggers and log events from the standard
   library to `structlog`.
-- Update tests and user-facing setup documentation for the new logging behavior.
+- Keep controller state coverage without asserting logging behavior.
+- Do not maintain tests for logging configuration, formatting, filtering, or
+  event emission.
+- Keep user-facing setup documentation for the logging behavior.
 
 This change does not add environment-based configuration, configuration
 objects, alternate development renderers, log files, or integrations for
@@ -24,7 +27,8 @@ third-party packages that use standard-library logging.
 INFO threshold, UTC ISO timestamps under `logged_at`, log levels, logger names,
 JSON rendering, and standard output. A future executable or CLI must call this
 function once at application startup; importing `simulator` must not configure
-global logging as a side effect.
+global logging as a side effect. Loggers are assembled and cached on first use
+because runtime configuration is fixed after application startup.
 
 Modules that emit events obtain a module-local logger with
 `structlog.get_logger(__name__)`. They do not configure logging and do not
@@ -57,19 +61,14 @@ simulation `timestamp` field.
 
 ## Testing
 
-Tests will verify externally visible behavior:
+Logging is treated as infrastructure and is intentionally not covered by the
+test suite. Tests do not assert JSON formatting, levels, timestamps, logger
+names, event emission, or absence of events.
 
-- `configure_logging()` produces parseable JSON on standard output.
-- Rendered INFO events include the event, fields, log level, logger name, and a
-  `logged_at` timestamp.
-- An event's structured `timestamp` field is not overwritten by `logged_at`.
-- DEBUG events do not produce output.
-- Existing controller logging emits `ru_activation_failed` with the exact
-  structured fields above.
-- Existing no-log behavior remains unchanged.
-
-Tests will reset or isolate `structlog` configuration where necessary so they
-remain deterministic and do not leak global logging state to unrelated tests.
+Controller tests retain state-only coverage for scenarios that also happen to
+emit logs, such as selected underpowered RUs being placed into sleep state. The
+dedicated logging test module and `structlog.testing.capture_logs()` usage are
+removed.
 
 ## Documentation
 
