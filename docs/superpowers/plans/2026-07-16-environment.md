@@ -19,6 +19,8 @@
 - Treat `distance >= coverage_radius` as disconnected.
 - Calculate connected weights as `(1 - random()) * (1 - distance / coverage_radius)`.
 - Use one `random.Random(random_seed)` instance for placement and weights.
+- For Tasks 1 through 3, start with an executed discovery test that fails inside
+  the test body; a pytest collection error does not satisfy the RED phase.
 - Do not add mobility, runtime entity changes, reset, graph recalculation, or heterogeneous RU settings.
 - Use `uv add` for the NetworkX dependency and commit the updated `uv.lock`.
 - Preserve Python `>=3.12` and unrelated user changes.
@@ -67,9 +69,25 @@
 - Consumes: `DomainValidationError`, `RU`, and `User`.
 - Produces: `MapCell(x: int, y: int, occupant: RU | User | None = None)` and `MapCell.distance_to(other: MapCell) -> float`.
 
-- [ ] **Step 1: Replace the Point tests with failing MapCell tests**
+- [ ] **Step 1: Establish an executed RED test, then build the final MapCell tests incrementally**
 
-Delete `tests/domain/test_point.py`. Create `tests/domain/test_map_cell.py` with:
+First replace `tests/domain/test_point.py` with this temporary discovery test:
+
+```python
+from importlib import import_module
+
+
+def test_map_cell_module_exists() -> None:
+    import_module("simulator.domain.map_cell")
+```
+
+Run this test before creating the module. After observing the expected failure
+inside the test body, use repeated red/green cycles to replace the temporary
+test with the final files below. Add each behavior test before its corresponding
+implementation; do not use a collection error as RED evidence.
+
+Rename the temporary test file to `tests/domain/test_map_cell.py` and finish it
+with:
 
 ```python
 from dataclasses import FrozenInstanceError
@@ -160,13 +178,14 @@ def test_domain_types_are_publicly_importable() -> None:
 
 - [ ] **Step 2: Run the focused domain tests to verify they fail**
 
-Run:
+Run the temporary discovery test before creating the module:
 
 ```bash
-uv run pytest tests/domain/test_map_cell.py tests/domain/test_domain.py -v
+uv run pytest tests/domain/test_point.py::test_map_cell_module_exists -v
 ```
 
-Expected: collection fails because `simulator.domain.map_cell` and `MapCell` do not exist.
+Expected: pytest executes the test and marks it failed with
+`ModuleNotFoundError: No module named 'simulator.domain.map_cell'`.
 
 - [ ] **Step 3: Implement MapCell and remove Point**
 
@@ -259,9 +278,25 @@ Expected: the commit contains only the domain replacement and its tests.
 - Consumes: `RUStatus`.
 - Produces: `EnvironmentValidationError`, `MapConfig`, `RUConfig`, and `EnvironmentConfig`.
 
-- [ ] **Step 1: Write failing configuration and public-import tests**
+- [ ] **Step 1: Establish an executed RED test, then build the final configuration tests incrementally**
 
-Create `tests/environment/test_config.py` with:
+First create `tests/environment/test_config.py` with this temporary discovery
+test:
+
+```python
+from importlib import import_module
+
+
+def test_environment_config_module_exists() -> None:
+    import_module("simulator.environment.config")
+```
+
+Run this test before replacing the empty environment module. After observing
+the expected failure inside the test body, use repeated red/green cycles to
+replace the temporary test with the final configuration tests below. Add each
+validation test before its corresponding implementation.
+
+Finish `tests/environment/test_config.py` with:
 
 ```python
 from dataclasses import FrozenInstanceError
@@ -426,13 +461,14 @@ def test_environment_configuration_types_are_publicly_importable() -> None:
 
 - [ ] **Step 2: Run the focused tests to verify they fail**
 
-Run:
+Run the temporary discovery test before replacing the module:
 
 ```bash
-uv run pytest tests/environment/test_config.py tests/environment/test_public_imports.py -v
+uv run pytest tests/environment/test_config.py::test_environment_config_module_exists -v
 ```
 
-Expected: collection fails because `simulator.environment` is still an empty module and does not export the configuration types.
+Expected: pytest executes the test and marks it failed because
+`simulator.environment` is not yet a package containing `config`.
 
 - [ ] **Step 3: Replace the module with the environment package and implement configuration**
 
@@ -571,7 +607,25 @@ Expected: the empty module is replaced by the package, and configuration tests p
 - Consumes: `EnvironmentConfig`, `MapCell`, `RU`, `RUStatus`, and `User`.
 - Produces: `Environment(config: EnvironmentConfig)`, `get_map()`, `get_rus()`, `get_users()`, `get_ru_locations()`, and `get_user_locations()`.
 
-- [ ] **Step 1: Write failing construction and placement tests**
+- [ ] **Step 1: Establish an executed RED test, then build the final construction tests incrementally**
+
+First create `tests/environment/test_environment.py` with this temporary
+discovery test:
+
+```python
+from importlib import import_module
+
+
+def test_environment_is_publicly_available() -> None:
+    module = import_module("simulator.environment")
+
+    assert hasattr(module, "Environment")
+```
+
+Run this test before creating the `Environment` class. After observing the
+expected assertion failure, use repeated red/green cycles to replace the
+temporary test with the final construction tests below. Add each behavior test
+before its corresponding implementation.
 
 Delete the empty `tests/test_environment.py`. Create `tests/environment/test_environment.py` with:
 
@@ -753,13 +807,14 @@ def test_environment_types_are_publicly_importable() -> None:
 
 - [ ] **Step 2: Run the focused tests to verify they fail**
 
-Run:
+Run the temporary discovery test before creating the class:
 
 ```bash
-uv run pytest tests/environment/test_environment.py tests/environment/test_public_imports.py -v
+uv run pytest tests/environment/test_environment.py::test_environment_is_publicly_available -v
 ```
 
-Expected: collection fails because `Environment` is not publicly available.
+Expected: pytest executes the test and marks it failed because
+`simulator.environment` does not yet export `Environment`.
 
 - [ ] **Step 3: Implement immediate environment construction and protected getters**
 
