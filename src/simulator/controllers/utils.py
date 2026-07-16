@@ -1,4 +1,4 @@
-import logging
+from structlog.stdlib import BoundLogger
 
 from simulator.domain.ru import RU, RUStatus
 
@@ -21,7 +21,7 @@ def _set_selected_status(
     ru: RU,
     timestamp: int,
     controller_name: str,
-    logger: logging.Logger | None = None,
+    logger: BoundLogger | None = None,
 ) -> None:
     if _can_activate(ru):
         ru.set_status(RUStatus.ACTIVE)
@@ -30,10 +30,10 @@ def _set_selected_status(
     ru.set_status(RUStatus.SLEEP)
     if logger is not None:
         logger.info(
-            "%s could not activate RU %s at timestamp %s: battery=%s, required=%s",
-            controller_name,
-            ru.id,
-            timestamp,
-            ru.get_battery(),
-            ru.active_consumption,
+            "ru_activation_failed",
+            controller=controller_name,
+            ru_id=ru.id,
+            timestamp=timestamp,
+            battery=ru.get_battery(),
+            required_battery=ru.active_consumption,
         )

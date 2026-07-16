@@ -33,6 +33,29 @@ least enough battery for one active timestamp.
 Battery depletion remains the RU's responsibility through `update_battery()`;
 controllers only select statuses.
 
+## Logging
+
+The simulator uses `structlog` and emits INFO-and-higher events as one JSON
+object per line on standard output. Each event includes a UTC `logged_at`
+timestamp, leaving domain fields such as the simulation `timestamp` intact.
+Configure logging once in the future application entry point before running the
+simulation:
+
+```python
+from simulator.logging import configure_logging
+
+configure_logging()
+```
+
+Modules obtain their own named logger and attach domain data as fields:
+
+```python
+import structlog
+
+logger = structlog.get_logger(__name__)
+logger.info("simulation_started", timestamp=0)
+```
+
 ## Setup
 
 Install [uv](https://docs.astral.sh/uv/), then synchronize the development environment:

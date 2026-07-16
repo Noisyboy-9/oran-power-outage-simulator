@@ -17,7 +17,18 @@ def test_emits_info_event_as_json(capsys) -> None:
     assert event["run_id"] == 7
     assert event["level"] == "info"
     assert event["logger"] == "simulator.test"
-    assert datetime.fromisoformat(event["timestamp"]).tzinfo is not None
+    assert datetime.fromisoformat(event["logged_at"]).tzinfo is not None
+
+
+def test_preserves_structured_timestamp_field(capsys) -> None:
+    configure_logging()
+    logger = structlog.get_logger("simulator.test")
+
+    logger.info("simulation_started", timestamp=7)
+
+    event = json.loads(capsys.readouterr().out)
+    assert event["timestamp"] == 7
+    assert datetime.fromisoformat(event["logged_at"]).tzinfo is not None
 
 
 def test_filters_debug_event(capsys) -> None:

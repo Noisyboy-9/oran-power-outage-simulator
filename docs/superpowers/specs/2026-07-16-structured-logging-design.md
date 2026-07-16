@@ -21,10 +21,10 @@ third-party packages that use standard-library logging.
 
 `src/simulator/logging.py` owns logging configuration. Its
 `configure_logging() -> None` function configures `structlog` with a hard-coded
-INFO threshold, UTC ISO timestamps, log levels, logger names, JSON rendering,
-and standard output. A future executable or CLI must call this function once at
-application startup; importing `simulator` must not configure global logging as
-a side effect.
+INFO threshold, UTC ISO timestamps under `logged_at`, log levels, logger names,
+JSON rendering, and standard output. A future executable or CLI must call this
+function once at application startup; importing `simulator` must not configure
+global logging as a side effect.
 
 Modules that emit events obtain a module-local logger with
 `structlog.get_logger(__name__)`. They do not configure logging and do not
@@ -51,7 +51,9 @@ its existing behavior explicitly requires no log for that case.
 After startup configuration, each accepted event is written to standard output
 as one JSON object per line. INFO, WARNING, ERROR, and CRITICAL events are
 accepted; DEBUG events are filtered out. Each rendered event contains its event
-name, structured domain fields, log level, logger name, and UTC timestamp.
+name, structured domain fields, log level, logger name, and UTC `logged_at`
+timestamp. The log timestamp uses its own key so domain events can retain a
+simulation `timestamp` field.
 
 ## Testing
 
@@ -59,7 +61,8 @@ Tests will verify externally visible behavior:
 
 - `configure_logging()` produces parseable JSON on standard output.
 - Rendered INFO events include the event, fields, log level, logger name, and a
-  timestamp.
+  `logged_at` timestamp.
+- An event's structured `timestamp` field is not overwritten by `logged_at`.
 - DEBUG events do not produce output.
 - Existing controller logging emits `ru_activation_failed` with the exact
   structured fields above.

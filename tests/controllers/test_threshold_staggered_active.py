@@ -1,6 +1,5 @@
-import logging
-
 import pytest
+from structlog.testing import capture_logs
 
 from simulator.controllers.threshold_staggered_active import (
     ThresholdStaggeredActiveController,
@@ -106,41 +105,35 @@ def test_empty_list_does_not_start_transition() -> None:
     assert even_ru.get_status() is RUStatus.ACTIVE
 
 
-def test_underpowered_ru_logs_info_before_transition(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+def test_underpowered_ru_logs_info_before_transition() -> None:
     ru = make_ru(1, battery=1.0, active_consumption=2.0)
 
-    with caplog.at_level(
-        logging.INFO,
-        logger="simulator.controllers.threshold_staggered_active",
-    ):
+    with capture_logs() as logs:
         ThresholdStaggeredActiveController(0.0).update([ru], timestamp=3)
 
     assert ru.get_status() is RUStatus.SLEEP
-    assert len(caplog.records) == 1
-    message = caplog.records[0].getMessage()
-    assert caplog.records[0].levelno == logging.INFO
-    assert "ThresholdStaggeredActiveController" in message
-    assert "RU 1" in message
-    assert "timestamp 3" in message
-    assert "battery=1.0" in message
-    assert "required=2.0" in message
+    assert logs == [
+        {
+            "event": "ru_activation_failed",
+            "controller": "ThresholdStaggeredActiveController",
+            "ru_id": 1,
+            "timestamp": 3,
+            "battery": 1.0,
+            "required_battery": 2.0,
+            "log_level": "info",
+        }
+    ]
 
 
-def test_selected_underpowered_ru_logs_info_after_transition(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+def test_selected_underpowered_ru_logs_info_after_transition() -> None:
     ru = make_ru(2, battery=1.0, active_consumption=2.0)
 
-    with caplog.at_level(
-        logging.INFO,
-        logger="simulator.controllers.threshold_staggered_active",
-    ):
+    with capture_logs() as logs:
         ThresholdStaggeredActiveController(100.0).update([ru], timestamp=0)
 
     assert ru.get_status() is RUStatus.SLEEP
-    assert len(caplog.records) == 1
+    assert len(logs) == 1
+    assert logs[0]["event"] == "ru_activation_failed"
 
 
 def test_rejects_invalid_timestamp() -> None:

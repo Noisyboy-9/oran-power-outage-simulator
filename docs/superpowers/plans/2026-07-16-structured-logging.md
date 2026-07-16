@@ -12,7 +12,8 @@
 
 - All simulator logging uses `structlog`; no simulator module emits events through standard-library logger methods.
 - The hard-coded minimum level is INFO.
-- Accepted events are newline-delimited JSON on standard output with UTC ISO timestamps, level, and logger name.
+- Accepted events are newline-delimited JSON on standard output with a UTC ISO `logged_at` timestamp, level, and logger name.
+- The `logged_at` field must not overwrite a domain event's simulation `timestamp` field.
 - `configure_logging() -> None` is called explicitly by the future application entry point and is not called on package import.
 - Do not add environment variables, configuration objects, alternate renderers, log files, or foreign standard-library logging integration.
 - Preserve the always-active controller's existing no-log behavior.
@@ -70,7 +71,18 @@ def test_emits_info_event_as_json(capsys) -> None:
     assert event["run_id"] == 7
     assert event["level"] == "info"
     assert event["logger"] == "simulator.test"
-    assert datetime.fromisoformat(event["timestamp"]).tzinfo is not None
+    assert datetime.fromisoformat(event["logged_at"]).tzinfo is not None
+
+
+def test_preserves_structured_timestamp_field(capsys) -> None:
+    configure_logging()
+    logger = structlog.get_logger("simulator.test")
+
+    logger.info("simulation_started", timestamp=7)
+
+    event = json.loads(capsys.readouterr().out)
+    assert event["timestamp"] == 7
+    assert datetime.fromisoformat(event["logged_at"]).tzinfo is not None
 
 
 def test_filters_debug_event(capsys) -> None:
@@ -121,7 +133,7 @@ def configure_logging() -> None:
             structlog.stdlib.filter_by_level,
             structlog.stdlib.add_logger_name,
             structlog.stdlib.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso", utc=True),
+            structlog.processors.TimeStamper(fmt="iso", utc=True, key="logged_at"),
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
@@ -381,7 +393,7 @@ Expected: the full test suite passes, Ruff reports no lint or formatting failure
 Run:
 
 ```bash
-git add src/simulator/controllers/utils.py src/simulator/controllers/staggered_active.py src/simulator/controllers/threshold_staggered_active.py tests/controllers/test_always_active.py tests/controllers/test_staggered_active.py tests/controllers/test_threshold_staggered_active.py README.md
+git add src/simulator/logging.py src/simulator/controllers/utils.py src/simulator/controllers/staggered_active.py src/simulator/controllers/threshold_staggered_active.py tests/test_logging.py tests/controllers/test_always_active.py tests/controllers/test_staggered_active.py tests/controllers/test_threshold_staggered_active.py docs/superpowers/specs/2026-07-16-structured-logging-design.md docs/superpowers/plans/2026-07-16-structured-logging.md README.md
 git diff --cached --check
 git commit -m "refactor: migrate controller logs to structlog"
 ```

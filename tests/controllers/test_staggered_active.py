@@ -1,6 +1,5 @@
-import logging
-
 import pytest
+from structlog.testing import capture_logs
 
 from simulator.controllers.staggered_active import StaggeredActiveController
 from simulator.domain.ru import RU, RUStatus
@@ -51,35 +50,34 @@ def test_selected_ru_with_exact_battery_is_active() -> None:
     assert ru.get_status() is RUStatus.ACTIVE
 
 
-def test_selected_underpowered_ru_sleeps_and_logs_info(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+def test_selected_underpowered_ru_sleeps_and_logs_info() -> None:
     ru = make_ru(2, battery=1.0)
 
-    with caplog.at_level(logging.INFO, logger="simulator.controllers.staggered_active"):
+    with capture_logs() as logs:
         StaggeredActiveController().update([ru], timestamp=7)
 
     assert ru.get_status() is RUStatus.SLEEP
-    assert len(caplog.records) == 1
-    record = caplog.records[0]
-    assert record.levelno == logging.INFO
-    assert "StaggeredActiveController" in record.getMessage()
-    assert "RU 2" in record.getMessage()
-    assert "timestamp 7" in record.getMessage()
-    assert "battery=1.0" in record.getMessage()
-    assert "required=2.0" in record.getMessage()
+    assert logs == [
+        {
+            "event": "ru_activation_failed",
+            "controller": "StaggeredActiveController",
+            "ru_id": 2,
+            "timestamp": 7,
+            "battery": 1.0,
+            "required_battery": 2.0,
+            "log_level": "info",
+        }
+    ]
 
 
-def test_non_selected_ru_sleeps_without_log(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+def test_non_selected_ru_sleeps_without_log() -> None:
     ru = make_ru(1, battery=1.0)
 
-    with caplog.at_level(logging.INFO, logger="simulator.controllers.staggered_active"):
+    with capture_logs() as logs:
         StaggeredActiveController().update([ru], timestamp=0)
 
     assert ru.get_status() is RUStatus.SLEEP
-    assert caplog.records == []
+    assert logs == []
 
 
 def test_empty_ru_list_is_a_no_op() -> None:

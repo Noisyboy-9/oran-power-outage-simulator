@@ -1,4 +1,4 @@
-import logging
+import structlog
 
 from simulator.controllers.base import RUController
 from simulator.controllers.utils import (
@@ -8,7 +8,7 @@ from simulator.controllers.utils import (
 )
 from simulator.domain.ru import RU, RUStatus
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class ThresholdStaggeredActiveController(RUController):
