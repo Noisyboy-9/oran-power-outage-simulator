@@ -1,0 +1,31 @@
+logging:
+  logger_name: simulator
+  level: INFO
+  destination: stdout
+  format: json
+  include_logger_name: true
+  include_log_level: true
+  timestamp:
+    key: logged_at
+    format: iso
+    timezone: utc
+  cache_loggers_on_first_use: true
+  propagate: false
+
+environment:
+  map:
+    width: 20
+    height: 20
+  ru:
+    count: 5
+    initial_battery: 100.0
+    initial_status: active
+    active_consumption: 2.0
+    sleep_consumption: 0.5
+    coverage_radius: 8.0
+  user_count: 30
+  random_seed: 42
+
+controllers:
+  threshold_staggered_active:
+    threshold_percentage: 50.0
