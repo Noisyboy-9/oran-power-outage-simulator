@@ -37,11 +37,26 @@ _STANDARD_LOGGING_LEVELS: Final = MappingProxyType(
 
 
 class _DuplicateKeyError(yaml.YAMLError):
+    """Carry the dotted path of a duplicate YAML key to ``load_config``.
+
+    PyYAML reports generic parsing errors but otherwise silently overwrites a
+    duplicate mapping key. This internal exception preserves the precise key
+    path so the public loader can raise a useful ``ConfigurationError``.
+    """
+
     def __init__(self, path: str) -> None:
         self.path = path
 
 
 class _DuplicateKeySafeLoader(yaml.SafeLoader):
+    """Safely construct YAML mappings while rejecting duplicate keys.
+
+    ``yaml.SafeLoader`` prevents unsafe object construction, but it accepts
+    duplicate mapping keys and keeps only the final value. Configuration files
+    must instead fail fast, so this loader detects duplicates before a value is
+    overwritten and records dotted paths for nested mappings.
+    """
+
     def __init__(self, stream: str) -> None:
         super().__init__(stream)
         self.mapping_paths: dict[int, str] = {}
