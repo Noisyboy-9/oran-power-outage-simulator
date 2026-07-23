@@ -92,14 +92,27 @@ def test_rejects_duplicate_nested_key(tmp_path: Path) -> None:
         load_config(write_config(tmp_path, contents))
 
 
-def test_rejects_custom_registered_logging_level(tmp_path: Path) -> None:
-    logging.addLevelName(5, "TRACE")
+def test_rejects_mapping_with_unhashable_key(tmp_path: Path) -> None:
+    contents = "? [a, b]\n: value\n"
+
+    with pytest.raises(ConfigurationError):
+        load_config(write_config(tmp_path, contents))
+
+
+def test_rejects_custom_registered_logging_level(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     contents = VALID_YAML.replace("level: INFO", "level: TRACE")
 
-    with pytest.raises(
-        ConfigurationError, match=r"^logging.level: unsupported logging level$"
-    ):
-        load_config(write_config(tmp_path, contents))
+    with monkeypatch.context() as local_logging:
+        local_logging.setattr(logging, "_nameToLevel", logging._nameToLevel.copy())
+        local_logging.setattr(logging, "_levelToName", logging._levelToName.copy())
+        logging.addLevelName(5, "TRACE")
+
+        with pytest.raises(
+            ConfigurationError, match=r"^logging.level: unsupported logging level$"
+        ):
+            load_config(write_config(tmp_path, contents))
 
 
 def test_rejects_missing_file(tmp_path: Path) -> None:

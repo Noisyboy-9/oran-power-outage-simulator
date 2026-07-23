@@ -76,9 +76,10 @@ controllers only select statuses.
 
 ## Logging
 
-The simulator uses `structlog` and emits INFO-and-higher events as one JSON
-object per line on standard output. Each event includes a UTC `logged_at`
-timestamp, leaving domain fields such as the simulation `timestamp` intact.
+With `configs/default.yaml`, the simulator uses `structlog` to emit
+INFO-and-higher events as one JSON object per line on standard output. That
+default configuration includes a UTC `logged_at` timestamp, leaving domain
+fields such as the simulation `timestamp` intact.
 Load configuration once at setup and pass it explicitly to each component; it
 is not held in a global singleton:
 

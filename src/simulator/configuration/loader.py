@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Mapping
+from collections.abc import Hashable, Mapping
 from pathlib import Path
 from types import MappingProxyType
 from typing import Final
@@ -54,6 +54,13 @@ class _DuplicateKeySafeLoader(yaml.SafeLoader):
         for key_node, value_node in node.value:
             key = self.construct_object(key_node, deep=deep)
             key_path = _join_path(path, str(key))
+            if not isinstance(key, Hashable):
+                raise yaml.constructor.ConstructorError(
+                    "while constructing a mapping",
+                    node.start_mark,
+                    "found unhashable key",
+                    key_node.start_mark,
+                )
             if key in mapping:
                 raise _DuplicateKeyError(key_path)
             if isinstance(value_node, yaml.MappingNode):
