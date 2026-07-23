@@ -76,6 +76,32 @@ def test_rejects_unknown_nested_key(tmp_path: Path) -> None:
         load_config(path)
 
 
+def test_rejects_duplicate_root_key(tmp_path: Path) -> None:
+    contents = VALID_YAML + VALID_YAML.split("controller:", maxsplit=1)[0]
+
+    with pytest.raises(ConfigurationError, match=r"^environment: duplicate key$"):
+        load_config(write_config(tmp_path, contents))
+
+
+def test_rejects_duplicate_nested_key(tmp_path: Path) -> None:
+    contents = VALID_YAML.replace("    count: 5", "    count: 5\n    count: 5")
+
+    with pytest.raises(
+        ConfigurationError, match=r"^environment.ru.count: duplicate key$"
+    ):
+        load_config(write_config(tmp_path, contents))
+
+
+def test_rejects_custom_registered_logging_level(tmp_path: Path) -> None:
+    logging.addLevelName(5, "TRACE")
+    contents = VALID_YAML.replace("level: INFO", "level: TRACE")
+
+    with pytest.raises(
+        ConfigurationError, match=r"^logging.level: unsupported logging level$"
+    ):
+        load_config(write_config(tmp_path, contents))
+
+
 def test_rejects_missing_file(tmp_path: Path) -> None:
     with pytest.raises(ConfigurationError, match="does not exist"):
         load_config(tmp_path / "missing.yaml")

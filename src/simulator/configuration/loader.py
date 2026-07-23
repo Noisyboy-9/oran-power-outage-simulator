@@ -1,6 +1,8 @@
 import logging
 from collections.abc import Mapping
 from pathlib import Path
+from types import MappingProxyType
+from typing import Final
 
 import yaml
 
@@ -20,6 +22,45 @@ from simulator.environment import (
     RUConfig,
 )
 
+_STANDARD_LOGGING_LEVELS: Final = MappingProxyType(
+    {
+        "CRITICAL": logging.CRITICAL,
+        "FATAL": logging.FATAL,
+        "ERROR": logging.ERROR,
+        "WARNING": logging.WARNING,
+        "WARN": logging.WARN,
+        "INFO": logging.INFO,
+        "DEBUG": logging.DEBUG,
+        "NOTSET": logging.NOTSET,
+    }
+)
+
+
+class _DuplicateKeyError(yaml.YAMLError):
+    def __init__(self, path: str) -> None:
+        self.path = path
+
+
+class _DuplicateKeySafeLoader(yaml.SafeLoader):
+    def __init__(self, stream: str) -> None:
+        super().__init__(stream)
+        self.mapping_paths: dict[int, str] = {}
+
+    def construct_mapping(
+        self, node: yaml.MappingNode, deep: bool = False
+    ) -> dict[object, object]:
+        path = self.mapping_paths.pop(id(node), "")
+        mapping: dict[object, object] = {}
+        for key_node, value_node in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            key_path = _join_path(path, str(key))
+            if key in mapping:
+                raise _DuplicateKeyError(key_path)
+            if isinstance(value_node, yaml.MappingNode):
+                self.mapping_paths[id(value_node)] = key_path
+            mapping[key] = self.construct_object(value_node, deep=deep)
+        return mapping
+
 
 def load_config(path: Path) -> ApplicationConfig:
     """Load an application configuration from a YAML file."""
@@ -34,11 +75,15 @@ def load_config(path: Path) -> ApplicationConfig:
 
 def _load_mapping(path: Path) -> Mapping[object, object]:
     try:
-        raw_config = yaml.safe_load(path.read_text(encoding="utf-8"))
+        raw_config = yaml.load(
+            path.read_text(encoding="utf-8"), Loader=_DuplicateKeySafeLoader
+        )
     except OSError as error:
         raise ConfigurationError(
             f"configuration file {path} does not exist or cannot be read"
         ) from error
+    except _DuplicateKeyError as error:
+        raise ConfigurationError(f"{error.path}: duplicate key") from error
     except yaml.YAMLError as error:
         raise ConfigurationError(
             f"configuration file {path} contains invalid YAML"
@@ -233,8 +278,8 @@ def _parse_ru_status(value: object, path: str) -> RUStatus:
 
 def _parse_logging_level(value: object, path: str) -> int:
     level_name = _require_string(value, path)
-    level = logging.getLevelNamesMapping().get(level_name)
-    if level is None or level_name != level_name.upper():
+    level = _STANDARD_LOGGING_LEVELS.get(level_name)
+    if level is None:
         raise ConfigurationError(f"{path}: unsupported logging level")
     return level
 
