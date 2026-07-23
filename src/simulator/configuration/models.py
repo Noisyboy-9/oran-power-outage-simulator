@@ -13,7 +13,7 @@ class ControllerKind(StrEnum):
 @dataclass(frozen=True)
 class ControllerConfig:
     kind: ControllerKind
-    threshold_percentage: float | None = None
+    threshold_percentage: int | float | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.kind, ControllerKind):

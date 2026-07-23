@@ -1,8 +1,14 @@
 from dataclasses import FrozenInstanceError
+from typing import get_type_hints
 
 import pytest
 
 from simulator.configuration import ControllerConfig, ControllerKind
+
+
+def test_threshold_percentage_annotation_accepts_integers_and_floats() -> None:
+    threshold_annotation = get_type_hints(ControllerConfig)["threshold_percentage"]
+    assert threshold_annotation == int | float | None
 
 
 def test_threshold_controller_accepts_in_range_percentage() -> None:
