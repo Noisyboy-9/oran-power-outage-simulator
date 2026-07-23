@@ -3,29 +3,39 @@ import sys
 
 import structlog
 
-_LOGGER_NAME = "simulator"
+from simulator.configuration.models import LoggingConfig
 
 
-def configure_logging() -> None:
-    handler = logging.StreamHandler(sys.stdout)
+def configure_logging(config: LoggingConfig) -> None:
+    handler = logging.StreamHandler({"stdout": sys.stdout}[config.destination])
     handler.setFormatter(logging.Formatter("%(message)s"))
 
-    simulator_logger = logging.getLogger(_LOGGER_NAME)
+    simulator_logger = logging.getLogger(config.logger_name)
     for existing_handler in simulator_logger.handlers:
         existing_handler.close()
     simulator_logger.handlers = [handler]
-    simulator_logger.setLevel(logging.INFO)
-    simulator_logger.propagate = False
+    simulator_logger.setLevel(config.level)
+    simulator_logger.propagate = config.propagate
+
+    processors: list[structlog.types.Processor] = [structlog.stdlib.filter_by_level]
+    if config.include_logger_name:
+        processors.append(structlog.stdlib.add_logger_name)
+    if config.include_log_level:
+        processors.append(structlog.stdlib.add_log_level)
+    processors.extend(
+        [
+            structlog.processors.TimeStamper(
+                fmt=config.timestamp.format,
+                utc=config.timestamp.utc,
+                key=config.timestamp.key,
+            ),
+            {"json": structlog.processors.JSONRenderer()}[config.format],
+        ]
+    )
 
     structlog.configure(
-        processors=[
-            structlog.stdlib.filter_by_level,
-            structlog.stdlib.add_logger_name,
-            structlog.stdlib.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso", utc=True, key="logged_at"),
-            structlog.processors.JSONRenderer(),
-        ],
+        processors=processors,
         wrapper_class=structlog.stdlib.BoundLogger,
         logger_factory=structlog.stdlib.LoggerFactory(),
-        cache_logger_on_first_use=True,
+        cache_logger_on_first_use=config.cache_loggers_on_first_use,
     )
