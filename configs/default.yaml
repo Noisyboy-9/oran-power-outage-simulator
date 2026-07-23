@@ -8,7 +8,7 @@ logging:
   timestamp:
     key: logged_at
     format: iso
-    timezone: utc
+    utc: true
   cache_loggers_on_first_use: true
   propagate: false
 
@@ -26,6 +26,6 @@ environment:
   user_count: 30
   random_seed: 42
 
-controllers:
-  threshold_staggered_active:
-    threshold_percentage: 50.0
+controller:
+  kind: threshold_staggered_active
+  threshold_percentage: 50.0

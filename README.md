@@ -79,13 +79,20 @@ controllers only select statuses.
 The simulator uses `structlog` and emits INFO-and-higher events as one JSON
 object per line on standard output. Each event includes a UTC `logged_at`
 timestamp, leaving domain fields such as the simulation `timestamp` intact.
-Configure logging once in the future application entry point before running the
-simulation:
+Load configuration once at setup and pass it explicitly to each component; it
+is not held in a global singleton:
 
 ```python
+from pathlib import Path
+
+from simulator.configuration import build_controller, load_config
+from simulator.environment import Environment
 from simulator.logging import configure_logging
 
-configure_logging()
+config = load_config(Path("configs/default.yaml"))
+configure_logging(config.logging)
+environment = Environment(config.environment)
+controller = build_controller(config.controller)
 ```
 
 Modules obtain their own named logger and attach domain data as fields:

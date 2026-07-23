@@ -57,6 +57,16 @@ def test_loads_typed_configuration(tmp_path: Path) -> None:
     assert config.controller.kind is ControllerKind.THRESHOLD_STAGGERED_ACTIVE
 
 
+def test_loads_tracked_default_configuration() -> None:
+    config_path = Path(__file__).parents[2] / "configs" / "default.yaml"
+
+    config = load_config(config_path)
+
+    assert config.environment.map.width == 20
+    assert config.controller.kind is ControllerKind.THRESHOLD_STAGGERED_ACTIVE
+    assert config.logging.level == logging.INFO
+
+
 def test_rejects_unknown_nested_key(tmp_path: Path) -> None:
     path = write_config(
         tmp_path, VALID_YAML.replace("count: 5", "count: 5\n    cout: 6")
