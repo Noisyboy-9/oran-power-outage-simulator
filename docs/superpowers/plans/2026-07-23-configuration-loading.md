@@ -180,6 +180,12 @@ logging level through `logging.getLevelNamesMapping()`. Permit only `stdout`,
 `json`, `iso`, and `timestamp.utc: true`. Export `load_config` in
 `__init__.py`.
 
+Before constructing `RUConfig`, validate `initial_battery`,
+`active_consumption`, and `sleep_consumption` as positive YAML numbers (never
+booleans), reporting their individual `environment.ru.<field>` paths. This
+makes the whole typed configuration valid when `load_config` returns rather
+than delaying those invalid values until `Environment` constructs RUs.
+
 - [ ] **Step 4: Verify the loader tests are green**
 
 Run `uv run pytest tests/configuration/test_loader.py -v`. Expect PASS.
@@ -280,6 +286,15 @@ Replace its controller section with:
 controller:
   kind: threshold_staggered_active
   threshold_percentage: 50.0
+```
+
+Replace the logging timestamp mapping's existing `timezone: utc` entry with:
+
+```yaml
+timestamp:
+  key: logged_at
+  format: iso
+  utc: true
 ```
 
 Document this setup sequence in the README:
