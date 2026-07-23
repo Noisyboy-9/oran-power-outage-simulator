@@ -1,4 +1,5 @@
 from simulator.configuration.errors import ConfigurationError
+from simulator.configuration.loader import load_config
 from simulator.configuration.models import (
     ApplicationConfig,
     ControllerConfig,
@@ -14,4 +15,5 @@ __all__ = [
     "ControllerKind",
     "LoggingConfig",
     "TimestampConfig",
+    "load_config",
 ]
