@@ -80,7 +80,8 @@ The simulator uses `structlog` and emits INFO-and-higher events as one JSON
 object per line on standard output. Each event includes a UTC `logged_at`
 timestamp, leaving domain fields such as the simulation `timestamp` intact.
 Configure logging once in the future application entry point before running the
-simulation:
+simulation. `simulator.logging` is the package's public configuration entry
+point:
 
 ```python
 from simulator.logging import configure_logging
