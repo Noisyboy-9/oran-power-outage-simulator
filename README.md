@@ -120,5 +120,5 @@ uv run ruff format .
 - `src/simulator/controllers`: the RU-controller abstraction and policies
 - `src/simulator/metrics`: the metric-collector abstraction and future collectors
 - `src/simulator/environment`: configuration and complete static simulation state
-- `src/simulator/simulation_controller.py`: time-step orchestration
+- `src/simulator/simulation.py`: time-step orchestration
 - `tests`: tests organized to mirror the source package
