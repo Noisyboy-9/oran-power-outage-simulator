@@ -43,9 +43,14 @@ class Environment:
         return [User(id=user_id) for user_id in range(1, self._config.user_count + 1)]
 
     def _place_entities(self) -> None:
-        available_cells = [cell for row in self._map for cell in row]
+        """Place entities using the environment's random number generator.
+
+        The row-major map is flattened for sampling. Each selected immutable cell
+        is replaced with an occupied copy and stored in the matching location map.
+        """
+        flattened_map = [cell for row in self._map for cell in row]
         entities: list[RU | User] = [*self._rus, *self._users]
-        selected_cells = self._random.sample(available_cells, len(entities))
+        selected_cells = self._random.sample(flattened_map, len(entities))
 
         for entity, cell in zip(entities, selected_cells, strict=True):
             occupied_cell = MapCell(x=cell.x, y=cell.y, occupant=entity)
@@ -56,6 +61,12 @@ class Environment:
                 self._user_locations[entity] = occupied_cell
 
     def _create_connectivity_graph(self) -> nx.Graph:
+        """Build the weighted bipartite graph from current entity locations.
+
+        Every RU and user becomes a node. Pairs inside the coverage radius receive
+        an edge weighted by distance-derived closeness and the environment's random
+        number generator.
+        """
         graph = nx.Graph()
         graph.add_nodes_from(self._rus, bipartite=0)
         graph.add_nodes_from(self._users, bipartite=1)
