@@ -3,8 +3,14 @@ import sys
 
 import structlog
 
+import simulator.logging
 from simulator.configuration import LoggingConfig, TimestampConfig
 from simulator.logging import configure_logging
+
+
+def test_logging_is_a_package_that_exposes_configure_logging() -> None:
+    assert hasattr(simulator.logging, "__path__")
+    assert callable(simulator.logging.configure_logging)
 
 
 def test_configure_logging_applies_configured_logger_settings() -> None:

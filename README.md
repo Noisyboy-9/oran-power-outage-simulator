@@ -79,9 +79,9 @@ controllers only select statuses.
 With `configs/default.yaml`, the simulator uses `structlog` to emit
 INFO-and-higher events as one JSON object per line on standard output. That
 default configuration includes a UTC `logged_at` timestamp, leaving domain
-fields such as the simulation `timestamp` intact.
-Load configuration once at setup and pass it explicitly to each component; it
-is not held in a global singleton:
+fields such as the simulation `timestamp` intact. `simulator.logging` is the
+package's public configuration entry point. Load configuration once at setup
+and pass it explicitly to each component; it is not held in a global singleton:
 
 ```python
 from pathlib import Path
@@ -127,5 +127,5 @@ uv run ruff format .
 - `src/simulator/controllers`: the RU-controller abstraction and policies
 - `src/simulator/metrics`: the metric-collector abstraction and future collectors
 - `src/simulator/environment`: configuration and complete static simulation state
-- `src/simulator/simulation_controller.py`: time-step orchestration
+- `src/simulator/simulation.py`: time-step orchestration
 - `tests`: tests organized to mirror the source package

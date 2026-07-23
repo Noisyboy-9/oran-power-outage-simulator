@@ -22,7 +22,7 @@ These rules are mandatory:
 - `src/simulator/controllers/`: the RU-controller abstraction and activation policies
 - `src/simulator/metrics/`: the metric-collector abstraction and individual collectors
 - `src/simulator/environment/`: configuration and ownership of complete simulation state
-- `src/simulator/simulation_controller.py`: time-step and component orchestration
+- `src/simulator/simulation.py`: time-step and component orchestration
 - `tests/`: pytest tests organized to mirror the source package
 - `docs/superpowers/`: approved design specifications and implementation plans
 
