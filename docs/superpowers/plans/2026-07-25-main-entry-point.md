@@ -89,6 +89,7 @@ Expected: a clean worktree with the rebased main-entry-point design and plan com
 **Files:**
 
 - Create: `tests/test_main.py`
+- Create: `tests/__init__.py`
 - Create: `main.py`
 
 **Interfaces:**
@@ -209,6 +210,11 @@ uv run pytest tests/test_main.py -v
 
 Expected: FAIL during collection because the repository-root `main` module does not yet exist.
 
+Create an empty `tests/__init__.py` before the passing run. This package marker
+keeps the repository root on pytest's import path under the project's required
+`uv run pytest` invocation, allowing the test to import the intentionally
+repository-root `main.py` without adding a pytest configuration override.
+
 - [ ] **Step 3: Implement the smallest CLI composition root**
 
 Create `main.py`:
@@ -272,7 +278,7 @@ Expected: PASS. The required argument produces `SystemExit(2)`, successful compo
 Run:
 
 ```bash
-git add main.py tests/test_main.py
+git add main.py tests/__init__.py tests/test_main.py
 git commit -m "feat: add simulation entry point"
 ```
 
