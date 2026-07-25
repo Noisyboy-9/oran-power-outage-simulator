@@ -48,6 +48,21 @@ def test_average_ru_battery_depletion_time_uses_an_exact_zero_at_t0() -> None:
     assert collector.finish_calculation() == 0.0
 
 
+def test_average_ru_battery_depletion_time_collection_does_not_mutate_environment() -> (
+    None
+):
+    environment = make_environment()
+    before_batteries = [ru.get_battery() for ru in environment.get_rus()]
+    before_statuses = [ru.get_status() for ru in environment.get_rus()]
+    before_connections = environment._connection_weights.copy()
+
+    AverageRUBatteryDepletionTimeCollector().collect(environment, 0)
+
+    assert [ru.get_battery() for ru in environment.get_rus()] == before_batteries
+    assert [ru.get_status() for ru in environment.get_rus()] == before_statuses
+    assert environment._connection_weights == before_connections
+
+
 def test_average_ru_battery_depletion_time_preserves_first_depletion() -> None:
     environment = make_environment()
     collector = AverageRUBatteryDepletionTimeCollector()

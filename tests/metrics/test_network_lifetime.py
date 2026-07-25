@@ -49,6 +49,21 @@ def test_network_lifetime_returns_zero_for_an_initial_violation() -> None:
     assert collector.finish_calculation() == 0.0
 
 
+def test_network_lifetime_collection_does_not_mutate_environment() -> None:
+    environment = make_environment(1)
+    before_batteries = [ru.get_battery() for ru in environment.get_rus()]
+    before_statuses = [ru.get_status() for ru in environment.get_rus()]
+    before_connections = environment._connection_weights.copy()
+
+    NetworkLifetimeCollector(minimum_emergency_service_fraction=0.5).collect(
+        environment, 0
+    )
+
+    assert [ru.get_battery() for ru in environment.get_rus()] == before_batteries
+    assert [ru.get_status() for ru in environment.get_rus()] == before_statuses
+    assert environment._connection_weights == before_connections
+
+
 def test_network_lifetime_is_infinite_when_sla_is_never_violated() -> None:
     collector = NetworkLifetimeCollector(minimum_emergency_service_fraction=0.5)
 

@@ -181,7 +181,7 @@ uv run ruff format .
 
 - `src/simulator/domain`: core simulation objects (`MapCell`, `RU`, and `User`)
 - `src/simulator/controllers`: the RU-controller abstraction and policies
-- `src/simulator/metrics`: the metric-collector abstraction and future collectors
+- `src/simulator/metrics`: the metric-collector abstraction and collectors
 - `src/simulator/environment`: configuration and complete static simulation state
 - `src/simulator/simulation.py`: time-step orchestration
 - `tests`: tests organized to mirror the source package

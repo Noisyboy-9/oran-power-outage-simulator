@@ -1,7 +1,17 @@
+import pytest
 from conftest import FakeEnvironment, make_ru
 
 from simulator.domain import RUStatus, User
 from simulator.metrics.service import _served_user_fraction
+
+
+def test_empty_user_set_is_rejected() -> None:
+    environment = FakeEnvironment([], [make_ru(1, RUStatus.ACTIVE)])
+
+    with pytest.raises(
+        ValueError, match="cannot calculate served-user fraction without users"
+    ):
+        _served_user_fraction(environment)
 
 
 def test_no_active_connection_serves_no_users() -> None:
