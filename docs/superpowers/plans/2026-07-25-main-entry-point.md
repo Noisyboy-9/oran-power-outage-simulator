@@ -17,7 +17,7 @@
 - Report a configuration failure as `error: <message>` on standard error; do not configure logging or construct `Simulation` after that failure.
 - `main.py` calls `Simulation(config, metric_collectors=()).simulate()` exactly once. It does not read `config.simulation.steps` or create a second step loop.
 - Do not add metric configuration, concrete metric collectors, a console-script package entry point, signal handling, progress output, result persistence, or new dependencies.
-- This branch depends on the completed simulation-orchestration work exposing `Simulation.simulate()` and the `simulation.steps` configuration described in its approved design.
+- This entry-point implementation assumes separately delivered public APIs: `Simulation.simulate()`, `ApplicationConfig.simulation`, `load_config`, `ConfigurationError`, and `configure_logging`.
 - Run project commands from the repository root with `uv`.
 
 ---
@@ -28,63 +28,7 @@
 - `tests/test_main.py`: verifies externally visible CLI and composition behavior without executing the real 10,000-step default run.
 - `README.md`: documents the required invocation and explains that `simulation.steps` determines run length.
 
-### Task 1: Integrate the simulation-orchestration dependency
-
-**Files:**
-
-- Modify: branch history by rebasing `feature/main-entry-point` onto the completed `feature/simulation-orchestration` branch.
-- Verify: `src/simulator/simulation.py`, `src/simulator/configuration/__init__.py`, and `configs/default.yaml` from the upstream work.
-
-**Interfaces:**
-
-- Consumes: `Simulation(config: ApplicationConfig, metric_collectors: Iterable[MetricCollector] = ())` and `Simulation.simulate() -> None`.
-- Consumes: `load_config(path: Path) -> ApplicationConfig`, `ConfigurationError`, and `configure_logging(config: LoggingConfig) -> None`.
-- Produces: a main-entry-point branch based on the tested simulation/configuration implementation rather than duplicated local definitions.
-
-- [ ] **Step 1: Confirm the upstream branch is complete and clean**
-
-Run:
-
-```bash
-git -C ../simulation-orchestration status --short
-git -C ../simulation-orchestration log -1 --oneline
-git -C ../simulation-orchestration show --stat --oneline HEAD
-```
-
-Expected: no uncommitted upstream changes, and its final commit includes the simulation/configuration work.
-
-- [ ] **Step 2: Rebase this branch on the completed upstream branch**
-
-Run:
-
-```bash
-git rebase feature/simulation-orchestration
-```
-
-Expected: `feature/main-entry-point` is based on the upstream implementation. Resolve only conflicts in this branch's design/plan files if Git reports them; do not alter the upstream simulation behavior.
-
-- [ ] **Step 3: Verify the dependency's public behavior**
-
-Run:
-
-```bash
-uv run pytest tests/configuration tests/metrics tests/environment tests/test_simulation.py
-```
-
-Expected: PASS. The imported `Simulation` API and the required `simulation.steps` configuration are available for the entry point.
-
-- [ ] **Step 4: Record the integration state**
-
-Run:
-
-```bash
-git status --short
-git log --oneline -3
-```
-
-Expected: a clean worktree with the rebased main-entry-point design and plan commits on top of the upstream work.
-
-### Task 2: Add the test-driven CLI composition root
+### Task 1: Add the test-driven CLI composition root
 
 **Files:**
 
@@ -208,7 +152,7 @@ Run:
 uv run pytest tests/test_main.py -v
 ```
 
-Expected: FAIL during collection because the repository-root `main` module does not yet exist.
+Expected: FAIL during collection because the repository-root `main` module does not yet exist. In the entry-point-only branch, run this test after the separate simulation/configuration work is available.
 
 Create an empty `tests/__init__.py` before the passing run. This package marker
 keeps the repository root on pytest's import path under the project's required
@@ -284,7 +228,7 @@ git commit -m "feat: add simulation entry point"
 
 Expected: one focused commit containing only the root CLI and its tests.
 
-### Task 3: Document the executable application boundary
+### Task 2: Document the executable application boundary
 
 **Files:**
 
