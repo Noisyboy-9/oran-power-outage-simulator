@@ -17,7 +17,10 @@ def make_environment(served_user_count: int) -> FakeEnvironment:
 
 
 def test_network_lifetime_stops_at_the_observation_before_first_violation() -> None:
-    collector = NetworkLifetimeCollector(minimum_emergency_service_fraction=0.5)
+    collector = NetworkLifetimeCollector(
+        minimum_emergency_service_fraction=0.5,
+        minimum_service_link_weight=0.3,
+    )
     environment_serving_all_users = make_environment(2)
     environment_serving_exactly_half_of_users = make_environment(1)
     environment_serving_no_users = make_environment(0)
@@ -31,7 +34,10 @@ def test_network_lifetime_stops_at_the_observation_before_first_violation() -> N
 
 
 def test_network_lifetime_does_not_extend_after_a_recovery() -> None:
-    collector = NetworkLifetimeCollector(minimum_emergency_service_fraction=0.5)
+    collector = NetworkLifetimeCollector(
+        minimum_emergency_service_fraction=0.5,
+        minimum_service_link_weight=0.3,
+    )
 
     collector.collect(make_environment(2), 0)
     collector.collect(make_environment(1), 1)
@@ -42,7 +48,10 @@ def test_network_lifetime_does_not_extend_after_a_recovery() -> None:
 
 
 def test_network_lifetime_returns_zero_for_an_initial_violation() -> None:
-    collector = NetworkLifetimeCollector(minimum_emergency_service_fraction=0.5)
+    collector = NetworkLifetimeCollector(
+        minimum_emergency_service_fraction=0.5,
+        minimum_service_link_weight=0.3,
+    )
 
     collector.collect(make_environment(0), 0)
 
@@ -55,9 +64,10 @@ def test_network_lifetime_collection_does_not_mutate_environment() -> None:
     before_statuses = [ru.get_status() for ru in environment.get_rus()]
     before_connections = environment._connection_weights.copy()
 
-    NetworkLifetimeCollector(minimum_emergency_service_fraction=0.5).collect(
-        environment, 0
-    )
+    NetworkLifetimeCollector(
+        minimum_emergency_service_fraction=0.5,
+        minimum_service_link_weight=0.3,
+    ).collect(environment, 0)
 
     assert [ru.get_battery() for ru in environment.get_rus()] == before_batteries
     assert [ru.get_status() for ru in environment.get_rus()] == before_statuses
@@ -65,7 +75,10 @@ def test_network_lifetime_collection_does_not_mutate_environment() -> None:
 
 
 def test_network_lifetime_is_infinite_when_sla_is_never_violated() -> None:
-    collector = NetworkLifetimeCollector(minimum_emergency_service_fraction=0.5)
+    collector = NetworkLifetimeCollector(
+        minimum_emergency_service_fraction=0.5,
+        minimum_service_link_weight=0.3,
+    )
 
     collector.collect(make_environment(1), 0)
     collector.collect(make_environment(2), 1)
@@ -78,4 +91,29 @@ def test_network_lifetime_rejects_invalid_service_fraction(
     minimum_emergency_service_fraction: float,
 ) -> None:
     with pytest.raises(ValueError, match="minimum_emergency_service_fraction"):
-        NetworkLifetimeCollector(minimum_emergency_service_fraction)
+        NetworkLifetimeCollector(
+            minimum_emergency_service_fraction,
+            minimum_service_link_weight=0.3,
+        )
+
+
+def test_network_lifetime_applies_service_link_threshold() -> None:
+    collector = NetworkLifetimeCollector(
+        minimum_emergency_service_fraction=0.5,
+        minimum_service_link_weight=0.6,
+    )
+
+    collector.collect(make_environment(1), 0)
+
+    assert collector.finish_calculation() == 0.0
+
+
+@pytest.mark.parametrize("minimum_service_link_weight", [-0.1, 1.1, True, "0.3"])
+def test_network_lifetime_rejects_invalid_service_link_threshold(
+    minimum_service_link_weight: object,
+) -> None:
+    with pytest.raises(ValueError, match="minimum_service_link_weight"):
+        NetworkLifetimeCollector(
+            minimum_emergency_service_fraction=0.5,
+            minimum_service_link_weight=minimum_service_link_weight,
+        )

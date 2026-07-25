@@ -1,3 +1,5 @@
+import networkx as nx
+
 from simulator.domain import RU, RUStatus, User
 
 
@@ -12,6 +14,15 @@ class FakeEnvironment:
 
     def get_rus(self) -> list[RU]:
         return self._rus.copy()
+
+    def get_connectivity_graph(self) -> nx.Graph:
+        graph = nx.Graph()
+        graph.add_nodes_from([*self._users, *self._rus])
+        graph.add_weighted_edges_from(
+            (user, ru, weight)
+            for (user, ru), weight in self._connection_weights.items()
+        )
+        return graph
 
     def get_connection_weight(self, user: User, ru: RU) -> float:
         return self._connection_weights.get((user, ru), 0.0)
