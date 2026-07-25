@@ -4,9 +4,8 @@ A custom dependable-networking simulator built with Python 3.12.
 
 The repository implements the core `MapCell`, `User`, and `RU` domain models,
 static environment construction, distance-weighted RU-to-user connectivity,
-and always-active, timestamp-staggered, and battery-threshold-staggered RU
-control policies. Simulation orchestration is implemented; concrete metric
-calculations remain for later phases.
+always-active, timestamp-staggered, and battery-threshold-staggered RU control
+policies, and configured metric collection.
 
 ## Domain Models
 
@@ -96,8 +95,9 @@ simulation.simulate()
 ```
 
 `main.py` is the application entry point: it loads configuration, configures
-logging, and starts `Simulation`. Concrete metric collector construction
-remains future work.
+logging, constructs configured metric collectors, starts `Simulation`, and
+finalizes each collector after the simulation completes. It does not define
+metric result output formatting.
 
 ## Logging
 
@@ -139,6 +139,27 @@ uv run python main.py --configs configs/default.yaml
 ```
 
 The required configuration's `simulation.steps` value determines how many ordered simulation steps run. `main.py` loads configuration, configures logging, constructs configured metric collectors, and starts `Simulation`. `Simulation` owns the ordered step loop.
+
+### Metrics
+
+Configure the collectors to run in `simulation.metrics`:
+
+```yaml
+simulation:
+  steps: 10000
+  metrics:
+    collectors:
+      - average_emergency_qos
+      - average_ru_battery_depletion_time
+      - network_lifetime
+    minimum_emergency_service_fraction: 0.8
+```
+
+Collectors observe the initial `t=0` state and each post-update state. Average
+Emergency QoS is the mean of its observed served-user fractions. Average RU
+Battery Depletion Time is infinity when any RU has no observed depletion. Network
+Lifetime is infinity when the service-level agreement is never violated over the
+observed horizon.
 
 ## Setup
 
