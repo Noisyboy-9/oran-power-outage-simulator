@@ -32,7 +32,8 @@ class Simulation:
     def _step(self) -> None:
         self._timestamp += 1
         self._environment.update_batteries()
-        self._controller.update(self._environment.get_rus(), self._timestamp)
+        rus = self._controller.update(self._environment.get_rus(), self._timestamp)
+        self._environment.set_rus(rus)
         self._environment.update_connectivity_graph()
         for collector in self._metric_collectors:
             collector.collect(self._environment)

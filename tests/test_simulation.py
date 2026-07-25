@@ -1,5 +1,3 @@
-from collections.abc import Callable
-
 import pytest
 
 import simulator.simulation as simulation_module
@@ -74,44 +72,43 @@ class RecordingCollector(MetricCollector):
 
 
 class RecordingController(RUController):
-    def __init__(self, lifecycle: list[tuple[str, int]]) -> None:
+    def __init__(self, lifecycle: list[str]) -> None:
         self._lifecycle = lifecycle
         self.received_rus: list[RU] | None = None
         self.received_timestamp: int | None = None
+        self.returned_rus: list[RU] | None = None
 
     def update(self, rus: list[RU], timestamp: int) -> list[RU]:
         self.received_rus = rus
         self.received_timestamp = timestamp
-        self._lifecycle.append(("controller", timestamp))
-        return rus
+        self.returned_rus = rus.copy()
+        self._lifecycle.append(f"controller.update:{timestamp}")
+        return self.returned_rus
 
 
 class LifecycleCollector(MetricCollector):
     def __init__(
         self,
-        lifecycle: list[tuple[str, int]],
-        timestamp: Callable[[], int],
+        lifecycle: list[str],
         component_environments: list[Environment],
     ) -> None:
         self._lifecycle = lifecycle
-        self._timestamp = timestamp
         self._component_environments = component_environments
 
     def collect(self, environment: Environment) -> None:
         self._component_environments.append(environment)
-        self._lifecycle.append(("collector", self._timestamp()))
+        self._lifecycle.append("collector.collect")
 
 
 def test_simulate_coordinates_managed_environment_in_exact_lifecycle_order(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    lifecycle: list[tuple[str, int]] = []
+    lifecycle: list[str] = []
     component_environments: list[Environment] = []
     controller = RecordingController(lifecycle)
     simulation: Simulation
     collector = LifecycleCollector(
         lifecycle,
-        lambda: simulation.timestamp,
         component_environments,
     )
     monkeypatch.setattr(
@@ -125,8 +122,7 @@ def test_simulate_coordinates_managed_environment_in_exact_lifecycle_order(
     expected_rus = original_get_rus()
 
     def record_battery_update() -> None:
-        lifecycle.append(("timestamp", simulation.timestamp))
-        lifecycle.append(("batteries", simulation.timestamp))
+        lifecycle.append("update_batteries")
         component_environments.append(environment)
 
     def get_rus_for_controller() -> list[RU]:
@@ -135,10 +131,17 @@ def test_simulate_coordinates_managed_environment_in_exact_lifecycle_order(
 
     def record_graph_update() -> None:
         component_environments.append(environment)
-        lifecycle.append(("graph", simulation.timestamp))
+        lifecycle.append("update_connectivity_graph")
+
+    set_rus_arguments: list[list[RU]] = []
+
+    def record_set_rus(rus: list[RU]) -> None:
+        lifecycle.append("set_rus")
+        set_rus_arguments.append(rus)
 
     monkeypatch.setattr(environment, "update_batteries", record_battery_update)
     monkeypatch.setattr(environment, "get_rus", get_rus_for_controller)
+    monkeypatch.setattr(environment, "set_rus", record_set_rus)
     monkeypatch.setattr(
         environment,
         "update_connectivity_graph",
@@ -148,11 +151,11 @@ def test_simulate_coordinates_managed_environment_in_exact_lifecycle_order(
     simulation.simulate()
 
     assert lifecycle == [
-        ("timestamp", 1),
-        ("batteries", 1),
-        ("controller", 1),
-        ("graph", 1),
-        ("collector", 1),
+        "update_batteries",
+        "controller.update:1",
+        "set_rus",
+        "update_connectivity_graph",
+        "collector.collect",
     ]
     assert controller.received_timestamp == 1
     assert controller.received_rus is not None
@@ -164,6 +167,9 @@ def test_simulate_coordinates_managed_environment_in_exact_lifecycle_order(
             strict=True,
         )
     )
+    assert controller.returned_rus is not None
+    assert set_rus_arguments == [controller.returned_rus]
+    assert set_rus_arguments[0] is controller.returned_rus
     assert len(component_environments) == 4
     assert all(
         component_environment is environment
