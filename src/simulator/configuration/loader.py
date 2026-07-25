@@ -12,6 +12,7 @@ from simulator.configuration.models import (
     ControllerConfig,
     ControllerKind,
     LoggingConfig,
+    SimulationConfig,
     TimestampConfig,
 )
 from simulator.domain.ru import RUStatus
@@ -87,11 +88,14 @@ class _DuplicateKeySafeLoader(yaml.SafeLoader):
 def load_config(path: Path) -> ApplicationConfig:
     """Load an application configuration from a YAML file."""
     raw_config = _load_mapping(path)
-    _require_exact_keys(raw_config, {"environment", "controller", "logging"}, "")
+    _require_exact_keys(
+        raw_config, {"environment", "controller", "logging", "simulation"}, ""
+    )
     return ApplicationConfig(
         environment=_parse_environment(raw_config["environment"], "environment"),
         controller=_parse_controller(raw_config["controller"], "controller"),
         logging=_parse_logging(raw_config["logging"], "logging"),
+        simulation=_parse_simulation(raw_config["simulation"], "simulation"),
     )
 
 
@@ -212,6 +216,16 @@ def _parse_controller(value: object, path: str) -> ControllerConfig:
         _join_path(path, "threshold_percentage"),
         kind=kind,
         threshold_percentage=threshold,
+    )
+
+
+def _parse_simulation(value: object, path: str) -> SimulationConfig:
+    raw_simulation = _require_mapping(value, path)
+    _require_exact_keys(raw_simulation, {"steps"}, path)
+    return _construct(
+        SimulationConfig,
+        path,
+        steps=_require_positive_integer(raw_simulation["steps"], f"{path}.steps"),
     )
 
 

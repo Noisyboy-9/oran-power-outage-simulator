@@ -55,7 +55,21 @@ class LoggingConfig:
 
 
 @dataclass(frozen=True)
+class SimulationConfig:
+    steps: int
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.steps, bool)
+            or not isinstance(self.steps, int)
+            or self.steps <= 0
+        ):
+            raise ValueError("steps must be a positive integer")
+
+
+@dataclass(frozen=True)
 class ApplicationConfig:
     environment: EnvironmentConfig
     controller: ControllerConfig
     logging: LoggingConfig
+    simulation: SimulationConfig
