@@ -7,25 +7,30 @@ from simulator.metrics import (
 )
 
 
-def test_builds_collectors_in_configuration_order_with_lifetime_sla() -> None:
+def test_builds_collectors_in_configuration_order_with_service_thresholds() -> None:
     collectors = build_metric_collectors(
         MetricsConfig(
             collectors=(
-                MetricKind.NETWORK_LIFETIME,
                 MetricKind.AVERAGE_EMERGENCY_QOS,
+                MetricKind.AVERAGE_RU_BATTERY_DEPLETION_TIME,
+                MetricKind.NETWORK_LIFETIME,
             ),
-            minimum_emergency_service_fraction=0.75,
-            minimum_service_link_weight=0.0,
+            minimum_emergency_service_fraction=0.8,
+            minimum_service_link_weight=0.6,
         )
     )
 
     assert [collector.name for collector in collectors] == [
-        "network_lifetime",
         "average_emergency_qos",
+        "average_ru_battery_depletion_time",
+        "network_lifetime",
     ]
-    assert isinstance(collectors[0], NetworkLifetimeCollector)
-    assert collectors[0].minimum_emergency_service_fraction == 0.75
-    assert isinstance(collectors[1], AverageEmergencyQoSCollector)
+    assert isinstance(collectors[0], AverageEmergencyQoSCollector)
+    assert collectors[0].minimum_service_link_weight == 0.6
+    assert isinstance(collectors[1], AverageRUBatteryDepletionTimeCollector)
+    assert isinstance(collectors[2], NetworkLifetimeCollector)
+    assert collectors[2].minimum_emergency_service_fraction == 0.8
+    assert collectors[2].minimum_service_link_weight == 0.6
 
 
 def test_builds_average_ru_battery_depletion_time_collector() -> None:

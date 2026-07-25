@@ -153,13 +153,17 @@ simulation:
       - average_ru_battery_depletion_time
       - network_lifetime
     minimum_emergency_service_fraction: 0.8
+    minimum_service_link_weight: 0.6
 ```
 
 Collectors observe the initial `t=0` state and each post-update state. Average
 Emergency QoS is the mean of its observed served-user fractions. Average RU
 Battery Depletion Time is infinity when any RU has no observed depletion. Network
 Lifetime is infinity when the service-level agreement is never violated over the
-observed horizon.
+observed horizon. Service requires an existing graph edge, an active RU, positive
+battery, and edge weight at least `minimum_service_link_weight`. A threshold of
+`0.0` disables only the additional quality filter; an existing edge is still
+required.
 
 ## Setup
 
