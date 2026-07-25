@@ -1,3 +1,8 @@
+from collections.abc import Callable
+
+import pytest
+
+import simulator.simulation as simulation_module
 from simulator.configuration import (
     ApplicationConfig,
     ControllerConfig,
@@ -6,7 +11,8 @@ from simulator.configuration import (
     SimulationConfig,
     TimestampConfig,
 )
-from simulator.domain import RUStatus
+from simulator.controllers import RUController
+from simulator.domain import RU, RUStatus
 from simulator.environment import Environment, EnvironmentConfig, MapConfig, RUConfig
 from simulator.metrics import MetricCollector
 from simulator.simulation import Simulation
@@ -65,6 +71,103 @@ class RecordingCollector(MetricCollector):
                 environment.get_connection_weight(user, ru),
             )
         )
+
+
+class RecordingController(RUController):
+    def __init__(self, lifecycle: list[tuple[str, int]]) -> None:
+        self._lifecycle = lifecycle
+        self.received_rus: list[RU] | None = None
+        self.received_timestamp: int | None = None
+
+    def update(self, rus: list[RU], timestamp: int) -> None:
+        self.received_rus = rus
+        self.received_timestamp = timestamp
+        self._lifecycle.append(("controller", timestamp))
+
+
+class LifecycleCollector(MetricCollector):
+    def __init__(
+        self,
+        lifecycle: list[tuple[str, int]],
+        timestamp: Callable[[], int],
+        component_environments: list[Environment],
+    ) -> None:
+        self._lifecycle = lifecycle
+        self._timestamp = timestamp
+        self._component_environments = component_environments
+
+    def collect(self, environment: Environment) -> None:
+        self._component_environments.append(environment)
+        self._lifecycle.append(("collector", self._timestamp()))
+
+
+def test_simulate_coordinates_managed_environment_in_exact_lifecycle_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lifecycle: list[tuple[str, int]] = []
+    component_environments: list[Environment] = []
+    controller = RecordingController(lifecycle)
+    simulation: Simulation
+    collector = LifecycleCollector(
+        lifecycle,
+        lambda: simulation.timestamp,
+        component_environments,
+    )
+    monkeypatch.setattr(
+        simulation_module,
+        "build_controller",
+        lambda _config: controller,
+    )
+    simulation = Simulation(make_application_config(), [collector])
+    environment = simulation.environment
+    original_get_rus = environment.get_rus
+    expected_rus = original_get_rus()
+
+    def record_battery_update() -> None:
+        lifecycle.append(("timestamp", simulation.timestamp))
+        lifecycle.append(("batteries", simulation.timestamp))
+        component_environments.append(environment)
+
+    def get_rus_for_controller() -> list[RU]:
+        component_environments.append(environment)
+        return original_get_rus()
+
+    def record_graph_update() -> None:
+        component_environments.append(environment)
+        lifecycle.append(("graph", simulation.timestamp))
+
+    monkeypatch.setattr(environment, "update_batteries", record_battery_update)
+    monkeypatch.setattr(environment, "get_rus", get_rus_for_controller)
+    monkeypatch.setattr(
+        environment,
+        "update_connectivity_graph",
+        record_graph_update,
+    )
+
+    simulation.simulate()
+
+    assert lifecycle == [
+        ("timestamp", 1),
+        ("batteries", 1),
+        ("controller", 1),
+        ("graph", 1),
+        ("collector", 1),
+    ]
+    assert controller.received_timestamp == 1
+    assert controller.received_rus is not None
+    assert all(
+        received is expected
+        for received, expected in zip(
+            controller.received_rus,
+            expected_rus,
+            strict=True,
+        )
+    )
+    assert len(component_environments) == 4
+    assert all(
+        component_environment is environment
+        for component_environment in component_environments
+    )
 
 
 def test_simulate_updates_state_before_collecting_metrics() -> None:

@@ -48,6 +48,13 @@ def test_simulation_config_accepts_positive_steps() -> None:
     assert SimulationConfig(steps=10_000).steps == 10_000
 
 
+def test_simulation_configuration_is_immutable() -> None:
+    config = SimulationConfig(steps=10_000)
+
+    with pytest.raises(FrozenInstanceError):
+        config.steps = 1
+
+
 @pytest.mark.parametrize("steps", [0, -1, True, 1.5, "10"])
 def test_simulation_config_rejects_non_positive_or_non_integer_steps(
     steps: object,
