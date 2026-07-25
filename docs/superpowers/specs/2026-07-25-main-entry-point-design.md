@@ -20,11 +20,13 @@ uv run python main.py --configs path/to/config.yaml
 when the flag is absent or its value is missing. The application does not use a
 default configuration path.
 
-`main()` returns an integer process status and the module's `__main__` guard
-exits with that status. A configuration file that cannot be loaded or fails
-schema validation is reported as a concise error on standard error, and the
-application exits nonzero before logging configuration or simulation
-construction.
+After successful argument parsing, `main()` returns `0` for a completed run or
+`1` for a configuration-loading failure; the module's `__main__` guard exits
+with that returned status. `argparse` retains its normal `SystemExit(2)`
+behavior for malformed or missing arguments. A configuration file that cannot
+be loaded or fails schema validation is reported as a concise error on standard
+error, and the application exits nonzero before logging configuration or
+simulation construction.
 
 ## Composition and Lifecycle
 
