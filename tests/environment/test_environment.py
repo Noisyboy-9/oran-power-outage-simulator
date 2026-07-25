@@ -143,6 +143,16 @@ def test_returned_ru_objects_retain_mutable_state() -> None:
     assert environment.get_rus()[0].get_status() is RUStatus.SLEEP
 
 
+def test_sets_rus_without_sharing_the_list_container() -> None:
+    environment = Environment(make_config(ru_count=1, user_count=1))
+    rus = environment.get_rus()
+
+    environment.set_rus(rus)
+    rus.clear()
+
+    assert len(environment.get_rus()) == 1
+
+
 def test_updates_each_ru_battery_using_its_current_status() -> None:
     environment = Environment(
         make_config(

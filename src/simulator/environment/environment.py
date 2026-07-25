@@ -92,6 +92,15 @@ class Environment:
     def get_rus(self) -> list[RU]:
         return self._rus.copy()
 
+    def set_rus(self, rus: list[RU]) -> None:
+        """Store RUs returned by a trusted controller.
+
+        The list is copied so a caller cannot subsequently change the
+        environment's collection structure through its original list reference.
+        The contained RU objects remain shared, retaining their updated statuses.
+        """
+        self._rus = rus.copy()
+
     def get_users(self) -> list[User]:
         return self._users.copy()
 
