@@ -48,6 +48,7 @@ def make_application_config(steps: int = 1) -> ApplicationConfig:
             metrics=MetricsConfig(
                 collectors=(),
                 minimum_emergency_service_fraction=0.8,
+                minimum_service_link_weight=0.0,
             ),
         ),
     )

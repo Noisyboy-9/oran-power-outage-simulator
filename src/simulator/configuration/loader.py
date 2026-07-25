@@ -228,7 +228,11 @@ def _parse_simulation(value: object, path: str) -> SimulationConfig:
     raw_metrics = _require_mapping(raw_simulation["metrics"], metrics_path)
     _require_exact_keys(
         raw_metrics,
-        {"collectors", "minimum_emergency_service_fraction"},
+        {
+            "collectors",
+            "minimum_emergency_service_fraction",
+            "minimum_service_link_weight",
+        },
         metrics_path,
     )
     collectors_path = _join_path(metrics_path, "collectors")
@@ -252,11 +256,23 @@ def _parse_simulation(value: object, path: str) -> SimulationConfig:
         steps=_require_positive_integer(raw_simulation["steps"], f"{path}.steps"),
         metrics=_construct(
             MetricsConfig,
-            _join_path(metrics_path, "minimum_emergency_service_fraction"),
+            metrics_path,
+            validation_paths={
+                "minimum_emergency_service_fraction": _join_path(
+                    metrics_path, "minimum_emergency_service_fraction"
+                ),
+                "minimum_service_link_weight": _join_path(
+                    metrics_path, "minimum_service_link_weight"
+                ),
+            },
             collectors=tuple(collectors),
             minimum_emergency_service_fraction=_require_number(
                 raw_metrics["minimum_emergency_service_fraction"],
                 _join_path(metrics_path, "minimum_emergency_service_fraction"),
+            ),
+            minimum_service_link_weight=_require_number(
+                raw_metrics["minimum_service_link_weight"],
+                _join_path(metrics_path, "minimum_service_link_weight"),
             ),
         ),
     )
@@ -353,13 +369,29 @@ def _parse_logging_level(value: object, path: str) -> int:
     return level
 
 
-def _construct[T](constructor: type[T], path: str, /, **kwargs: object) -> T:
+def _construct[T](
+    constructor: type[T],
+    path: str,
+    /,
+    validation_paths: Mapping[str, str] | None = None,
+    **kwargs: object,
+) -> T:
     try:
         return constructor(**kwargs)
     except EnvironmentValidationError as error:
         raise ConfigurationError(f"{path}: {error}") from error
     except ValueError as error:
-        raise ConfigurationError(f"{path}: {error}") from error
+        error_path = path
+        if validation_paths is not None:
+            error_path = next(
+                (
+                    validation_path
+                    for field_name, validation_path in validation_paths.items()
+                    if str(error).startswith(field_name)
+                ),
+                path,
+            )
+        raise ConfigurationError(f"{error_path}: {error}") from error
 
 
 def _require_mapping(value: object, path: str) -> Mapping[object, object]:

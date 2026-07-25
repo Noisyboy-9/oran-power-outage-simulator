@@ -39,6 +39,7 @@ simulation:
       - average_emergency_qos
       - network_lifetime
     minimum_emergency_service_fraction: 0.8
+    minimum_service_link_weight: 0.3
 logging:
   logger_name: simulator
   level: INFO
@@ -81,6 +82,7 @@ def test_loads_ordered_metrics_configuration(tmp_path: Path) -> None:
         MetricKind.NETWORK_LIFETIME,
     )
     assert metrics.minimum_emergency_service_fraction == 0.8
+    assert metrics.minimum_service_link_weight == 0.3
 
 
 @pytest.mark.parametrize(
@@ -128,6 +130,27 @@ def test_loads_ordered_metrics_configuration(tmp_path: Path) -> None:
             ),
             "simulation.metrics.minimum_emergency_service_fraction",
         ),
+        (
+            VALID_YAML.replace(
+                "minimum_service_link_weight: 0.3",
+                "minimum_service_link_weight: false",
+            ),
+            "simulation.metrics.minimum_service_link_weight",
+        ),
+        (
+            VALID_YAML.replace(
+                "minimum_service_link_weight: 0.3",
+                "minimum_service_link_weight: -0.1",
+            ),
+            "simulation.metrics.minimum_service_link_weight",
+        ),
+        (
+            VALID_YAML.replace(
+                "minimum_service_link_weight: 0.3",
+                "minimum_service_link_weight: 1.1",
+            ),
+            "simulation.metrics.minimum_service_link_weight",
+        ),
     ],
 )
 def test_rejects_invalid_metrics_configuration(
@@ -152,6 +175,10 @@ def test_rejects_invalid_metrics_configuration(
             "simulation.metrics.unknown",
         ),
         (
+            VALID_YAML.replace("    minimum_service_link_weight: 0.3\n", ""),
+            "simulation.metrics.minimum_service_link_weight",
+        ),
+        (
             VALID_YAML.replace(
                 (
                     "  metrics:\n"
@@ -159,6 +186,7 @@ def test_rejects_invalid_metrics_configuration(
                     "      - average_emergency_qos\n"
                     "      - network_lifetime\n"
                     "    minimum_emergency_service_fraction: 0.8\n"
+                    "    minimum_service_link_weight: 0.3\n"
                 ),
                 "",
             ),

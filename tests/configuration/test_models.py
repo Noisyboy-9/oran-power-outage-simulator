@@ -14,6 +14,7 @@ from simulator.configuration import (
 VALID_METRICS = MetricsConfig(
     collectors=(MetricKind.AVERAGE_EMERGENCY_QOS,),
     minimum_emergency_service_fraction=0.8,
+    minimum_service_link_weight=0.3,
 )
 
 
@@ -75,7 +76,11 @@ def test_simulation_config_rejects_non_positive_or_non_integer_steps(
 
 
 def test_metrics_config_accepts_an_empty_collector_tuple() -> None:
-    config = MetricsConfig(collectors=(), minimum_emergency_service_fraction=0.8)
+    config = MetricsConfig(
+        collectors=(),
+        minimum_emergency_service_fraction=0.8,
+        minimum_service_link_weight=0.3,
+    )
 
     assert config.collectors == ()
 
@@ -92,7 +97,11 @@ def test_metrics_config_accepts_an_empty_collector_tuple() -> None:
 )
 def test_metrics_config_rejects_invalid_collectors(collectors: object) -> None:
     with pytest.raises(ValueError, match="collectors"):
-        MetricsConfig(collectors=collectors, minimum_emergency_service_fraction=0.8)  # type: ignore[arg-type]
+        MetricsConfig(
+            collectors=collectors,
+            minimum_emergency_service_fraction=0.8,
+            minimum_service_link_weight=0.3,
+        )  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("fraction", [True, 0, 1.1])
@@ -101,4 +110,22 @@ def test_metrics_config_rejects_invalid_service_fraction(fraction: object) -> No
         MetricsConfig(
             collectors=(MetricKind.AVERAGE_EMERGENCY_QOS,),
             minimum_emergency_service_fraction=fraction,  # type: ignore[arg-type]
+            minimum_service_link_weight=0.3,
         )
+
+
+@pytest.mark.parametrize("threshold", [0.0, 0.3, 1.0])
+def test_metrics_config_accepts_service_link_weight(threshold: float) -> None:
+    config = MetricsConfig(
+        collectors=(),
+        minimum_emergency_service_fraction=0.8,
+        minimum_service_link_weight=threshold,
+    )
+
+    assert config.minimum_service_link_weight == threshold
+
+
+@pytest.mark.parametrize("threshold", [-0.1, 1.1, True, "0.3"])
+def test_metrics_config_rejects_invalid_service_link_weight(threshold: object) -> None:
+    with pytest.raises(ValueError, match="minimum_service_link_weight"):
+        MetricsConfig((), 0.8, threshold)  # type: ignore[arg-type]

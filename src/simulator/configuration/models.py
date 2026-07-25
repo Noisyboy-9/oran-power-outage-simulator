@@ -20,6 +20,7 @@ class MetricKind(StrEnum):
 class MetricsConfig:
     collectors: tuple[MetricKind, ...]
     minimum_emergency_service_fraction: float
+    minimum_service_link_weight: float
 
     def __post_init__(self) -> None:
         if not isinstance(self.collectors, tuple) or any(
@@ -36,6 +37,15 @@ class MetricsConfig:
         ):
             raise ValueError(
                 "minimum_emergency_service_fraction must be a number between 0 and 1"
+            )
+        threshold = self.minimum_service_link_weight
+        if (
+            isinstance(threshold, bool)
+            or not isinstance(threshold, (int, float))
+            or not 0 <= threshold <= 1
+        ):
+            raise ValueError(
+                "minimum_service_link_weight must be a number between 0 and 1"
             )
 
 

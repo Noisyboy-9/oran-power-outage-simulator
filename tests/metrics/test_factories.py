@@ -15,6 +15,7 @@ def test_builds_collectors_in_configuration_order_with_lifetime_sla() -> None:
                 MetricKind.AVERAGE_EMERGENCY_QOS,
             ),
             minimum_emergency_service_fraction=0.75,
+            minimum_service_link_weight=0.0,
         )
     )
 
@@ -32,6 +33,7 @@ def test_builds_average_ru_battery_depletion_time_collector() -> None:
         MetricsConfig(
             collectors=(MetricKind.AVERAGE_RU_BATTERY_DEPLETION_TIME,),
             minimum_emergency_service_fraction=0.8,
+            minimum_service_link_weight=0.0,
         )
     )
 
@@ -44,6 +46,7 @@ def test_empty_collector_configuration_builds_an_empty_list() -> None:
         MetricsConfig(
             collectors=(),
             minimum_emergency_service_fraction=0.8,
+            minimum_service_link_weight=0.0,
         )
     )
 
