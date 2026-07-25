@@ -95,8 +95,9 @@ simulation = Simulation(config)
 simulation.simulate()
 ```
 
-A future application entry point will load configuration, configure logging,
-create concrete collectors, and pass them to `Simulation`.
+`main.py` is the application entry point: it loads configuration, configures
+logging, and starts `Simulation`. Concrete metric collector construction
+remains future work.
 
 ## Logging
 
