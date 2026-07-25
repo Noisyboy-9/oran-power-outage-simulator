@@ -18,7 +18,6 @@ class Simulation:
             build_controller(config.controller),
         )
         self._metric_collectors = list(metric_collectors)
-        self._initial_metrics_collected = False
 
     @property
     def timestamp(self) -> int:
@@ -34,13 +33,9 @@ class Simulation:
             self._step()
 
     def _collect_initial_metrics(self) -> None:
-        if self._initial_metrics_collected:
-            return
-
         # Metrics include the initial state because their definitions start at t=0.
         for collector in self._metric_collectors:
             collector.collect(self._environment, self._timestamp)
-        self._initial_metrics_collected = True
 
     def _step(self) -> None:
         self._timestamp += 1

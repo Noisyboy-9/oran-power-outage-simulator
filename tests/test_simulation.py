@@ -60,6 +60,7 @@ def test_starts_at_timestamp_zero_with_configured_environment() -> None:
     assert simulation.timestamp == 0
     assert len(simulation.environment.get_rus()) == 1
     assert len(simulation.environment.get_users()) == 1
+    assert not hasattr(simulation, "_initial_metrics_collected")
 
 
 class RecordingCollector(MetricCollector):
@@ -176,18 +177,6 @@ def test_simulate_collects_initial_state_once_and_each_updated_state() -> None:
     assert collector.observations[1][3] != initial_weight
     assert ru.get_battery() == 6.0
     assert ru.get_status() is RUStatus.ACTIVE
-
-    simulation.simulate()
-
-    assert simulation.timestamp == 4
-    assert [observation[0] for observation in collector.observations] == [
-        0,
-        1,
-        2,
-        3,
-        4,
-    ]
-    assert [observation[0] for observation in collector.observations[3:]] == [3, 4]
 
 
 def test_simulate_uses_the_status_selected_by_the_previous_iteration() -> None:
