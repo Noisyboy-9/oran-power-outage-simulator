@@ -143,6 +143,26 @@ def test_returned_ru_objects_retain_mutable_state() -> None:
     assert environment.get_rus()[0].get_status() is RUStatus.SLEEP
 
 
+def test_updates_each_ru_battery_using_its_current_status() -> None:
+    environment = Environment(
+        make_config(
+            ru_count=2,
+            user_count=1,
+            initial_battery=10.0,
+            active_consumption=2.0,
+            sleep_consumption=0.5,
+        )
+    )
+    active_ru, sleeping_ru = environment.get_rus()
+    active_ru.set_status(RUStatus.ACTIVE)
+    sleeping_ru.set_status(RUStatus.SLEEP)
+
+    environment.update_batteries()
+
+    assert active_ru.get_battery() == 8.0
+    assert sleeping_ru.get_battery() == 9.5
+
+
 def test_propagates_ru_validation_for_invalid_uniform_settings() -> None:
     config = make_config(initial_battery=0.0)
 

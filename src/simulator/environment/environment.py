@@ -104,6 +104,13 @@ class Environment:
     def get_connectivity_graph(self) -> nx.Graph:
         return self._connectivity_graph.copy()
 
+    def update_batteries(self) -> None:
+        for ru in self._rus:
+            ru.update_battery()
+
+    def update_connectivity_graph(self) -> None:
+        self._connectivity_graph = self._create_connectivity_graph()
+
     def get_connection_weight(self, user: User, ru: RU) -> float:
         owns_user = any(candidate is user for candidate in self._users)
         owns_ru = any(candidate is ru for candidate in self._rus)

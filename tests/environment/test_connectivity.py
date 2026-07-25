@@ -124,6 +124,15 @@ def test_equal_seeds_reproduce_connection_weights() -> None:
     assert edge_weights_by_ids(first) == edge_weights_by_ids(second)
 
 
+def test_rebuilds_connectivity_graph_with_the_next_seeded_random_values() -> None:
+    environment = make_environment(random_seed=7)
+    initial_weights = edge_weights_by_ids(environment)
+
+    environment.update_connectivity_graph()
+
+    assert edge_weights_by_ids(environment) != initial_weights
+
+
 def test_graph_getter_returns_independent_graph_copy() -> None:
     environment = make_environment()
     returned_graph = environment.get_connectivity_graph()
