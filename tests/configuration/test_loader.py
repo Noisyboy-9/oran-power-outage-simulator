@@ -1,4 +1,5 @@
 import logging
+import re
 from pathlib import Path
 
 import pytest
@@ -156,7 +157,7 @@ def test_loads_ordered_metrics_configuration(tmp_path: Path) -> None:
 def test_rejects_invalid_metrics_configuration(
     tmp_path: Path, contents: str, path: str
 ) -> None:
-    with pytest.raises(ConfigurationError, match=path):
+    with pytest.raises(ConfigurationError, match=rf"^{re.escape(path)}:"):
         load_config(write_config(tmp_path, contents))
 
 
@@ -197,7 +198,7 @@ def test_rejects_invalid_metrics_configuration(
 def test_rejects_invalid_metrics_structure(
     tmp_path: Path, contents: str, path: str
 ) -> None:
-    with pytest.raises(ConfigurationError, match=path):
+    with pytest.raises(ConfigurationError, match=rf"^{re.escape(path)}:"):
         load_config(write_config(tmp_path, contents))
 
 
