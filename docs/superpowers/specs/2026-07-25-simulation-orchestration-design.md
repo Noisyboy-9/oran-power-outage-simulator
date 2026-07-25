@@ -59,13 +59,17 @@ order in which the environment and RU controller run.
 `RUController.update(rus, timestamp) -> list[RU]` updates statuses and returns
 the RU list to be adopted by the environment. Controllers must return the same
 RU instances supplied to them; they do not create replacement RUs. The
-environment exposes `replace_rus(rus)` to make that ownership handoff explicit
-and adopts the supplied list without validation. The environment and RU
+environment exposes `set_rus(rus)` to make that ownership handoff explicit
+and adopts a shallow copy of the supplied list without validation. The
+environment and RU
 controllers are a trusted boundary: controllers are responsible for returning
 a compatible list containing the existing RU instances, as documented on the
 `RUController` interface. This preserves the map occupancy and location
 indexes, which are keyed by RU identity, while allowing the simulation
-controller to pass the policy result back to the environment.
+controller to pass the policy result back to the environment. `set_rus` keeps
+a copy of the list so callers cannot later alter the environment's collection
+structure through the list reference they passed; the RU objects themselves
+remain shared, retaining their updated statuses.
 
 `MetricCollector` is an abstract interface with
 `collect(environment: Environment) -> None`. Collectors observe the environment
@@ -88,9 +92,9 @@ observer contract and ordering. Environment battery and connectivity operations
 also receive focused tests.
 
 Controller and environment tests verify that every controller returns its input
-RU list and that `replace_rus` adopts the supplied list. Simulation
+RU list and that `set_rus` adopts the supplied list. Simulation
 orchestration tests verify that the list returned by the controller is passed
-to `replace_rus` before connectivity is rebuilt.
+to `set_rus` before connectivity is rebuilt.
 
 ## Scope Boundaries
 
