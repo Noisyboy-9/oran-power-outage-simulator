@@ -2,6 +2,7 @@ import random
 
 import networkx as nx
 
+from simulator.controllers import RUController
 from simulator.domain.map_cell import MapCell
 from simulator.domain.ru import RU
 from simulator.domain.user import User
@@ -9,8 +10,9 @@ from simulator.environment.config import EnvironmentConfig
 
 
 class Environment:
-    def __init__(self, config: EnvironmentConfig) -> None:
+    def __init__(self, config: EnvironmentConfig, controller: RUController) -> None:
         self._config = config
+        self._controller = controller
         self._random = random.Random(config.random_seed)
         self._map = self._create_map()
         self._rus = self._create_rus()
@@ -103,6 +105,18 @@ class Environment:
 
     def get_connectivity_graph(self) -> nx.Graph:
         return self._connectivity_graph.copy()
+
+    def update(self, timestamp: int) -> None:
+        self._update_batteries()
+        self._rus = self._controller.update(self.get_rus(), timestamp).copy()
+        self._update_connectivity_graph()
+
+    def _update_batteries(self) -> None:
+        for ru in self._rus:
+            ru.update_battery()
+
+    def _update_connectivity_graph(self) -> None:
+        self._connectivity_graph = self._create_connectivity_graph()
 
     def get_connection_weight(self, user: User, ru: RU) -> float:
         owns_user = any(candidate is user for candidate in self._users)

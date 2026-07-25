@@ -12,9 +12,9 @@ logger = structlog.get_logger(__name__)
 
 
 class StaggeredActiveController(RUController):
-    def update(self, RUs: list[RU], timestamp: int) -> None:
+    def update(self, rus: list[RU], timestamp: int) -> list[RU]:
         _validate_timestamp(timestamp)
-        for ru in RUs:
+        for ru in rus:
             if not _is_selected_for_timestamp(ru, timestamp):
                 ru.set_status(RUStatus.SLEEP)
                 continue
@@ -25,3 +25,5 @@ class StaggeredActiveController(RUController):
                 type(self).__name__,
                 logger,
             )
+
+        return rus

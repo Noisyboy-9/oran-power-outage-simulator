@@ -3,7 +3,7 @@ from typing import get_type_hints
 
 import pytest
 
-from simulator.configuration import ControllerConfig, ControllerKind
+from simulator.configuration import ControllerConfig, ControllerKind, SimulationConfig
 
 
 def test_threshold_percentage_annotation_accepts_integers_and_floats() -> None:
@@ -42,3 +42,22 @@ def test_controller_configuration_is_immutable() -> None:
 
     with pytest.raises(FrozenInstanceError):
         config.threshold_percentage = 75.0
+
+
+def test_simulation_config_accepts_positive_steps() -> None:
+    assert SimulationConfig(steps=10_000).steps == 10_000
+
+
+def test_simulation_configuration_is_immutable() -> None:
+    config = SimulationConfig(steps=10_000)
+
+    with pytest.raises(FrozenInstanceError):
+        config.steps = 1
+
+
+@pytest.mark.parametrize("steps", [0, -1, True, 1.5, "10"])
+def test_simulation_config_rejects_non_positive_or_non_integer_steps(
+    steps: object,
+) -> None:
+    with pytest.raises(ValueError, match="steps"):
+        SimulationConfig(steps=steps)  # type: ignore[arg-type]

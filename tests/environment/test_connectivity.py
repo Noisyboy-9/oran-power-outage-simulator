@@ -1,6 +1,7 @@
 import networkx as nx
 import pytest
 
+from simulator.controllers import AlwaysActiveController
 from simulator.domain.ru import RU, RUStatus
 from simulator.domain.user import User
 from simulator.environment import (
@@ -33,7 +34,8 @@ def make_environment(
             ),
             user_count=user_count,
             random_seed=random_seed,
-        )
+        ),
+        AlwaysActiveController(),
     )
 
 
@@ -122,6 +124,15 @@ def test_equal_seeds_reproduce_connection_weights() -> None:
     )
 
     assert edge_weights_by_ids(first) == edge_weights_by_ids(second)
+
+
+def test_rebuilds_connectivity_graph_with_the_next_seeded_random_values() -> None:
+    environment = make_environment(random_seed=7)
+    initial_weights = edge_weights_by_ids(environment)
+
+    environment.update(timestamp=1)
+
+    assert edge_weights_by_ids(environment) != initial_weights
 
 
 def test_graph_getter_returns_independent_graph_copy() -> None:

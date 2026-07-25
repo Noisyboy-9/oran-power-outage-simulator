@@ -65,10 +65,20 @@ def test_non_selected_ru_sleeps() -> None:
     assert ru.get_status() is RUStatus.SLEEP
 
 
-def test_empty_ru_list_is_a_no_op() -> None:
-    result = StaggeredActiveController().update([], timestamp=0)
+def test_returns_the_supplied_ru_list() -> None:
+    rus = [make_ru(1)]
 
-    assert result is None
+    result = StaggeredActiveController().update(rus, timestamp=0)
+
+    assert result is rus
+
+
+def test_empty_ru_list_is_a_no_op() -> None:
+    rus: list[RU] = []
+
+    result = StaggeredActiveController().update(rus, timestamp=0)
+
+    assert result is rus
 
 
 def test_rejects_invalid_timestamp() -> None:

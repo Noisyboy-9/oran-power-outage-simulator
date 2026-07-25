@@ -5,8 +5,8 @@ A custom dependable-networking simulator built with Python 3.12.
 The repository implements the core `MapCell`, `User`, and `RU` domain models,
 static environment construction, distance-weighted RU-to-user connectivity,
 and always-active, timestamp-staggered, and battery-threshold-staggered RU
-control policies. Simulation orchestration and metric calculations remain
-scaffolded for later phases.
+control policies. Simulation orchestration is implemented; concrete metric
+calculations remain for later phases.
 
 ## Domain Models
 
@@ -73,6 +73,30 @@ least enough battery for one active timestamp.
 
 Battery depletion remains the RU's responsibility through `update_battery()`;
 controllers only select statuses.
+
+## Simulation
+
+`Simulation` is the entry point for one already-loaded `ApplicationConfig`.
+It creates the environment and configured RU controller, starts at timestamp
+`0`, and accepts optional metric collector instances. Calling `simulate()` runs
+the positive `simulation.steps` count from configuration. Each private step
+increments the timestamp, depletes batteries using prior statuses, applies the
+RU controller, rebuilds connectivity, and then calls each collector with the
+completed environment.
+
+```python
+from pathlib import Path
+
+from simulator.configuration import load_config
+from simulator.simulation import Simulation
+
+config = load_config(Path("configs/default.yaml"))
+simulation = Simulation(config)
+simulation.simulate()
+```
+
+A future application entry point will load configuration, configure logging,
+create concrete collectors, and pass them to `Simulation`.
 
 ## Logging
 
