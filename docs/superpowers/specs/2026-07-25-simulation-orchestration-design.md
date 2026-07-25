@@ -58,6 +58,9 @@ post-depletion battery state to choose statuses for the next timestamp.
 It exposes `update(timestamp)` because it owns the RU collection, controller,
 and connectivity graph. `Simulation` retains responsibility only for advancing
 global time and collecting metrics after environment state updates.
+Battery depletion and connectivity rebuilding are private implementation
+helpers (`_update_batteries()` and `_update_connectivity_graph()`), so
+`update(timestamp)` is the environment's only public update operation.
 
 `RUController.update(rus, timestamp) -> list[RU]` updates statuses and returns
 the RU list to be adopted by the environment. Controllers must return the same
