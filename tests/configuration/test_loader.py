@@ -3,7 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from simulator.configuration import ConfigurationError, ControllerKind, load_config
+from simulator.configuration import (
+    ConfigurationError,
+    ControllerKind,
+    MetricKind,
+    load_config,
+)
 from simulator.domain.ru import RUStatus
 
 DEFAULT_CONTROLLER = (
@@ -29,6 +34,11 @@ controller:
   threshold_percentage: 50.0
 simulation:
   steps: 3
+  metrics:
+    collectors:
+      - average_emergency_qos
+      - network_lifetime
+    minimum_emergency_service_fraction: 0.8
 logging:
   logger_name: simulator
   level: INFO
@@ -61,6 +71,117 @@ def test_loads_typed_configuration(tmp_path: Path) -> None:
 
 def test_loads_simulation_steps(tmp_path: Path) -> None:
     assert load_config(write_config(tmp_path, VALID_YAML)).simulation.steps == 3
+
+
+def test_loads_ordered_metrics_configuration(tmp_path: Path) -> None:
+    metrics = load_config(write_config(tmp_path, VALID_YAML)).simulation.metrics
+
+    assert metrics.collectors == (
+        MetricKind.AVERAGE_EMERGENCY_QOS,
+        MetricKind.NETWORK_LIFETIME,
+    )
+    assert metrics.minimum_emergency_service_fraction == 0.8
+
+
+@pytest.mark.parametrize(
+    ("contents", "path"),
+    [
+        (
+            VALID_YAML.replace(
+                (
+                    "    collectors:\n"
+                    "      - average_emergency_qos\n"
+                    "      - network_lifetime"
+                ),
+                "    collectors: invalid",
+            ),
+            "simulation.metrics.collectors",
+        ),
+        (
+            VALID_YAML.replace("      - network_lifetime", "      - unknown_metric"),
+            "simulation.metrics.collectors",
+        ),
+        (
+            VALID_YAML.replace(
+                "      - network_lifetime", "      - average_emergency_qos"
+            ),
+            "simulation.metrics.collectors",
+        ),
+        (
+            VALID_YAML.replace(
+                "minimum_emergency_service_fraction: 0.8",
+                "minimum_emergency_service_fraction: 0",
+            ),
+            "simulation.metrics.minimum_emergency_service_fraction",
+        ),
+        (
+            VALID_YAML.replace(
+                "minimum_emergency_service_fraction: 0.8",
+                "minimum_emergency_service_fraction: 1.1",
+            ),
+            "simulation.metrics.minimum_emergency_service_fraction",
+        ),
+        (
+            VALID_YAML.replace(
+                "minimum_emergency_service_fraction: 0.8",
+                "minimum_emergency_service_fraction: true",
+            ),
+            "simulation.metrics.minimum_emergency_service_fraction",
+        ),
+    ],
+)
+def test_rejects_invalid_metrics_configuration(
+    tmp_path: Path, contents: str, path: str
+) -> None:
+    with pytest.raises(ConfigurationError, match=path):
+        load_config(write_config(tmp_path, contents))
+
+
+@pytest.mark.parametrize(
+    ("contents", "path"),
+    [
+        (
+            VALID_YAML.replace(
+                (
+                    "    collectors:\n"
+                    "      - average_emergency_qos\n"
+                    "      - network_lifetime"
+                ),
+                "    collectors: []",
+            ),
+            "simulation.metrics.collectors",
+        ),
+        (
+            VALID_YAML.replace("      - network_lifetime", "      - 1"),
+            "simulation.metrics.collectors",
+        ),
+        (
+            VALID_YAML.replace(
+                "    minimum_emergency_service_fraction: 0.8",
+                "    minimum_emergency_service_fraction: 0.8\n    unknown: value",
+            ),
+            "simulation.metrics.unknown",
+        ),
+        (
+            VALID_YAML.replace(
+                (
+                    "  metrics:\n"
+                    "    collectors:\n"
+                    "      - average_emergency_qos\n"
+                    "      - network_lifetime\n"
+                    "    minimum_emergency_service_fraction: 0.8\n"
+                ),
+                "",
+            ),
+            "simulation.metrics",
+        ),
+    ],
+)
+def test_rejects_invalid_metrics_structure(
+    tmp_path: Path, contents: str, path: str
+) -> None:
+    with pytest.raises(ConfigurationError, match=path):
+        load_config(write_config(tmp_path, contents))
 
 
 @pytest.mark.parametrize("steps", ["0", "-1", "true", "1.5"])

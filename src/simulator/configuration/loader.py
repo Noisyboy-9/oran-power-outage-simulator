@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Hashable, Mapping
+from collections.abc import Hashable, Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
 from typing import Final
@@ -12,6 +12,8 @@ from simulator.configuration.models import (
     ControllerConfig,
     ControllerKind,
     LoggingConfig,
+    MetricKind,
+    MetricsConfig,
     SimulationConfig,
     TimestampConfig,
 )
@@ -221,11 +223,44 @@ def _parse_controller(value: object, path: str) -> ControllerConfig:
 
 def _parse_simulation(value: object, path: str) -> SimulationConfig:
     raw_simulation = _require_mapping(value, path)
-    _require_exact_keys(raw_simulation, {"steps"}, path)
+    _require_exact_keys(raw_simulation, {"steps", "metrics"}, path)
+    metrics_path = _join_path(path, "metrics")
+    raw_metrics = _require_mapping(raw_simulation["metrics"], metrics_path)
+    _require_exact_keys(
+        raw_metrics,
+        {"collectors", "minimum_emergency_service_fraction"},
+        metrics_path,
+    )
+    collectors_path = _join_path(metrics_path, "collectors")
+    raw_collectors = _require_sequence(raw_metrics["collectors"], collectors_path)
+    if not raw_collectors:
+        raise ConfigurationError(f"{collectors_path}: must not be empty")
+    collectors: list[MetricKind] = []
+    for raw_collector in raw_collectors:
+        collector_name = _require_string(raw_collector, collectors_path)
+        try:
+            collectors.append(MetricKind(collector_name))
+        except ValueError as error:
+            raise ConfigurationError(
+                f"{collectors_path}: unsupported metric kind"
+            ) from error
+    if len(set(collectors)) != len(collectors):
+        raise ConfigurationError(
+            f"{collectors_path}: collectors must not contain duplicates"
+        )
     return _construct(
         SimulationConfig,
         path,
         steps=_require_positive_integer(raw_simulation["steps"], f"{path}.steps"),
+        metrics=_construct(
+            MetricsConfig,
+            _join_path(metrics_path, "minimum_emergency_service_fraction"),
+            collectors=tuple(collectors),
+            minimum_emergency_service_fraction=_require_number(
+                raw_metrics["minimum_emergency_service_fraction"],
+                _join_path(metrics_path, "minimum_emergency_service_fraction"),
+            ),
+        ),
     )
 
 
@@ -332,6 +367,12 @@ def _construct[T](constructor: type[T], path: str, /, **kwargs: object) -> T:
 def _require_mapping(value: object, path: str) -> Mapping[object, object]:
     if not isinstance(value, Mapping):
         raise ConfigurationError(f"{path}: must be a mapping")
+    return value
+
+
+def _require_sequence(value: object, path: str) -> Sequence[object]:
+    if isinstance(value, (str, bytes)) or not isinstance(value, Sequence):
+        raise ConfigurationError(f"{path}: must be a list")
     return value
 
 

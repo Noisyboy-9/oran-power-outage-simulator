@@ -6,6 +6,8 @@ from simulator.configuration.models import (
     ControllerConfig,
     ControllerKind,
     LoggingConfig,
+    MetricKind,
+    MetricsConfig,
     SimulationConfig,
     TimestampConfig,
 )
@@ -17,6 +19,8 @@ __all__ = [
     "ControllerConfig",
     "ControllerKind",
     "LoggingConfig",
+    "MetricKind",
+    "MetricsConfig",
     "SimulationConfig",
     "TimestampConfig",
     "load_config",

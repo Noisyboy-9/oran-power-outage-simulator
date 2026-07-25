@@ -10,6 +10,35 @@ class ControllerKind(StrEnum):
     THRESHOLD_STAGGERED_ACTIVE = "threshold_staggered_active"
 
 
+class MetricKind(StrEnum):
+    AVERAGE_EMERGENCY_QOS = "average_emergency_qos"
+    AVERAGE_RU_BATTERY_DEPLETION_TIME = "average_ru_battery_depletion_time"
+    NETWORK_LIFETIME = "network_lifetime"
+
+
+@dataclass(frozen=True)
+class MetricsConfig:
+    collectors: tuple[MetricKind, ...]
+    minimum_emergency_service_fraction: float
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.collectors, tuple) or any(
+            not isinstance(kind, MetricKind) for kind in self.collectors
+        ):
+            raise ValueError("collectors must contain MetricKind values")
+        if len(set(self.collectors)) != len(self.collectors):
+            raise ValueError("collectors must not contain duplicates")
+        fraction = self.minimum_emergency_service_fraction
+        if (
+            isinstance(fraction, bool)
+            or not isinstance(fraction, (int, float))
+            or not 0 < fraction <= 1
+        ):
+            raise ValueError(
+                "minimum_emergency_service_fraction must be a number between 0 and 1"
+            )
+
+
 @dataclass(frozen=True)
 class ControllerConfig:
     kind: ControllerKind
@@ -57,6 +86,7 @@ class LoggingConfig:
 @dataclass(frozen=True)
 class SimulationConfig:
     steps: int
+    metrics: MetricsConfig
 
     def __post_init__(self) -> None:
         if (

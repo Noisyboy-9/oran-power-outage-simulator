@@ -3,7 +3,18 @@ from typing import get_type_hints
 
 import pytest
 
-from simulator.configuration import ControllerConfig, ControllerKind, SimulationConfig
+from simulator.configuration import (
+    ControllerConfig,
+    ControllerKind,
+    MetricKind,
+    MetricsConfig,
+    SimulationConfig,
+)
+
+VALID_METRICS = MetricsConfig(
+    collectors=(MetricKind.AVERAGE_EMERGENCY_QOS,),
+    minimum_emergency_service_fraction=0.8,
+)
 
 
 def test_threshold_percentage_annotation_accepts_integers_and_floats() -> None:
@@ -45,11 +56,11 @@ def test_controller_configuration_is_immutable() -> None:
 
 
 def test_simulation_config_accepts_positive_steps() -> None:
-    assert SimulationConfig(steps=10_000).steps == 10_000
+    assert SimulationConfig(steps=10_000, metrics=VALID_METRICS).steps == 10_000
 
 
 def test_simulation_configuration_is_immutable() -> None:
-    config = SimulationConfig(steps=10_000)
+    config = SimulationConfig(steps=10_000, metrics=VALID_METRICS)
 
     with pytest.raises(FrozenInstanceError):
         config.steps = 1
@@ -60,4 +71,34 @@ def test_simulation_config_rejects_non_positive_or_non_integer_steps(
     steps: object,
 ) -> None:
     with pytest.raises(ValueError, match="steps"):
-        SimulationConfig(steps=steps)  # type: ignore[arg-type]
+        SimulationConfig(steps=steps, metrics=VALID_METRICS)  # type: ignore[arg-type]
+
+
+def test_metrics_config_accepts_an_empty_collector_tuple() -> None:
+    config = MetricsConfig(collectors=(), minimum_emergency_service_fraction=0.8)
+
+    assert config.collectors == ()
+
+
+@pytest.mark.parametrize(
+    "collectors",
+    [
+        [MetricKind.AVERAGE_EMERGENCY_QOS],
+        (
+            MetricKind.AVERAGE_EMERGENCY_QOS,
+            MetricKind.AVERAGE_EMERGENCY_QOS,
+        ),
+    ],
+)
+def test_metrics_config_rejects_invalid_collectors(collectors: object) -> None:
+    with pytest.raises(ValueError, match="collectors"):
+        MetricsConfig(collectors=collectors, minimum_emergency_service_fraction=0.8)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("fraction", [True, 0, 1.1])
+def test_metrics_config_rejects_invalid_service_fraction(fraction: object) -> None:
+    with pytest.raises(ValueError, match="minimum_emergency_service_fraction"):
+        MetricsConfig(
+            collectors=(MetricKind.AVERAGE_EMERGENCY_QOS,),
+            minimum_emergency_service_fraction=fraction,  # type: ignore[arg-type]
+        )
