@@ -58,10 +58,20 @@ def test_underpowered_ru_remains_asleep() -> None:
     assert ru.get_status() is RUStatus.SLEEP
 
 
-def test_empty_ru_list_is_a_no_op() -> None:
-    result = AlwaysActiveController().update([], timestamp=0)
+def test_returns_the_supplied_ru_list() -> None:
+    rus = [make_ru()]
 
-    assert result is None
+    result = AlwaysActiveController().update(rus, timestamp=0)
+
+    assert result is rus
+
+
+def test_empty_ru_list_is_a_no_op() -> None:
+    rus: list[RU] = []
+
+    result = AlwaysActiveController().update(rus, timestamp=0)
+
+    assert result is rus
 
 
 @pytest.mark.parametrize("timestamp", [-1, 1.5, True])

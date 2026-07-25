@@ -18,7 +18,7 @@ def test_controller_classes_are_publicly_importable() -> None:
     )
 
 
-def test_controller_updates_name_the_ru_list_RUs() -> None:
+def test_controller_updates_name_the_ru_list_rus() -> None:
     controller_types = (
         RUController,
         AlwaysActiveController,
@@ -28,4 +28,4 @@ def test_controller_updates_name_the_ru_list_RUs() -> None:
 
     for controller_type in controller_types:
         parameter_names = list(signature(controller_type.update).parameters)
-        assert parameter_names == ["self", "RUs", "timestamp"]
+        assert parameter_names == ["self", "rus", "timestamp"]
