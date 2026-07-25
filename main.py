@@ -30,6 +30,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     configure_logging(config.logging)
+    # Metric collectors are intentionally empty until their configuration and
+    # implementations exist. The metrics implementation must construct the
+    # configured collectors here and pass them to Simulation; Simulation must
+    # remain unaware of how collectors are selected.
     simulation = Simulation(config, metric_collectors=())
     simulation.simulate()
     return 0
