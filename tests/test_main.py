@@ -29,7 +29,21 @@ def test_loads_config_configures_logging_and_runs_simulation(
 ) -> None:
     events: list[object] = []
     logging_config = object()
-    config = SimpleNamespace(logging=logging_config)
+    metrics_config = object()
+    config = SimpleNamespace(
+        logging=logging_config,
+        simulation=SimpleNamespace(metrics=metrics_config),
+    )
+
+    class FakeCollector:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        def finish_calculation(self) -> float:
+            events.append(f"finish:{self.name}")
+            return 0.0
+
+    fake_collectors = [FakeCollector("first"), FakeCollector("second")]
 
     def fake_load_config(path: Path) -> object:
         events.append(("load", path))
@@ -37,6 +51,10 @@ def test_loads_config_configures_logging_and_runs_simulation(
 
     def fake_configure_logging(received_config: object) -> None:
         events.append(("configure_logging", received_config))
+
+    def fake_build_metric_collectors(received_config: object) -> list[FakeCollector]:
+        events.append(("build_collectors", received_config))
+        return fake_collectors
 
     class FakeSimulation:
         def __init__(
@@ -49,14 +67,23 @@ def test_loads_config_configures_logging_and_runs_simulation(
 
     monkeypatch.setattr(main, "load_config", fake_load_config)
     monkeypatch.setattr(main, "configure_logging", fake_configure_logging)
+    monkeypatch.setattr(
+        main,
+        "build_metric_collectors",
+        fake_build_metric_collectors,
+        raising=False,
+    )
     monkeypatch.setattr(main, "Simulation", FakeSimulation)
 
     assert main.main(["--configs", "example.yaml"]) == 0
     assert events == [
         ("load", Path("example.yaml")),
         ("configure_logging", logging_config),
-        ("construct", config, ()),
+        ("build_collectors", metrics_config),
+        ("construct", config, fake_collectors),
         "simulate",
+        "finish:first",
+        "finish:second",
     ]
 
 

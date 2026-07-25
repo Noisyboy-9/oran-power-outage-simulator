@@ -6,6 +6,7 @@ from simulator.configuration import (
     ControllerConfig,
     ControllerKind,
     LoggingConfig,
+    MetricsConfig,
     SimulationConfig,
     TimestampConfig,
 )
@@ -42,7 +43,13 @@ def make_application_config(steps: int = 1) -> ApplicationConfig:
             cache_loggers_on_first_use=True,
             propagate=False,
         ),
-        simulation=SimulationConfig(steps=steps),
+        simulation=SimulationConfig(
+            steps=steps,
+            metrics=MetricsConfig(
+                collectors=(),
+                minimum_emergency_service_fraction=0.8,
+            ),
+        ),
     )
 
 
@@ -56,18 +63,28 @@ def test_starts_at_timestamp_zero_with_configured_environment() -> None:
 
 class RecordingCollector(MetricCollector):
     def __init__(self) -> None:
-        self.observations: list[tuple[float, RUStatus, float]] = []
+        super().__init__()
+        self.observations: list[tuple[int, float, RUStatus, float]] = []
 
-    def collect(self, environment: Environment) -> None:
+    @property
+    def name(self) -> str:
+        return "recording"
+
+    def _collect(self, environment: Environment, timestamp: int) -> None:
         ru = environment.get_rus()[0]
         user = environment.get_users()[0]
         self.observations.append(
             (
+                timestamp,
                 ru.get_battery(),
                 ru.get_status(),
                 environment.get_connection_weight(user, ru),
             )
         )
+
+    def finish_calculation(self) -> float:
+        self._require_observation()
+        return float(len(self.observations))
 
 
 class RecordingEnvironment:
@@ -84,12 +101,21 @@ class LifecycleCollector(MetricCollector):
         lifecycle: list[str],
         component_environments: list[Environment],
     ) -> None:
+        super().__init__()
         self._lifecycle = lifecycle
         self._component_environments = component_environments
 
-    def collect(self, environment: Environment) -> None:
+    @property
+    def name(self) -> str:
+        return "lifecycle"
+
+    def _collect(self, environment: Environment, timestamp: int) -> None:
         self._component_environments.append(environment)
-        self._lifecycle.append("collector.collect")
+        self._lifecycle.append(f"collector.collect:{timestamp}")
+
+    def finish_calculation(self) -> float:
+        self._require_observation()
+        return float(len(self._component_environments))
 
 
 def test_simulate_delegates_environment_update_before_collecting_metrics(
@@ -117,26 +143,50 @@ def test_simulate_delegates_environment_update_before_collecting_metrics(
 
     simulation.simulate()
 
-    assert lifecycle == ["environment.update:1", "collector.collect"]
-    assert component_environments == [environment]
+    assert lifecycle == [
+        "collector.collect:0",
+        "environment.update:1",
+        "collector.collect:1",
+    ]
+    assert component_environments == [environment, environment]
 
 
-def test_simulate_updates_state_before_collecting_metrics() -> None:
+def test_simulate_collects_initial_state_once_and_each_updated_state() -> None:
     collector = RecordingCollector()
-    simulation = Simulation(make_application_config(), [collector])
+    simulation = Simulation(make_application_config(steps=2), [collector])
     ru = simulation.environment.get_rus()[0]
     user = simulation.environment.get_users()[0]
     initial_weight = simulation.environment.get_connection_weight(user, ru)
 
     simulation.simulate()
 
-    assert simulation.timestamp == 1
-    assert ru.get_battery() == 9.0
+    assert simulation.timestamp == 2
+    assert [observation[0] for observation in collector.observations] == [0, 1, 2]
+    assert collector.observations[0] == (
+        0,
+        10.0,
+        RUStatus.SLEEP,
+        initial_weight,
+    )
+    assert collector.observations[1][1:3] == (
+        9.0,
+        RUStatus.ACTIVE,
+    )
+    assert collector.observations[1][3] != initial_weight
+    assert ru.get_battery() == 6.0
     assert ru.get_status() is RUStatus.ACTIVE
-    assert collector.observations == [
-        (9.0, RUStatus.ACTIVE, simulation.environment.get_connection_weight(user, ru))
+
+    simulation.simulate()
+
+    assert simulation.timestamp == 4
+    assert [observation[0] for observation in collector.observations] == [
+        0,
+        1,
+        2,
+        3,
+        4,
     ]
-    assert collector.observations[0][2] != initial_weight
+    assert [observation[0] for observation in collector.observations[3:]] == [3, 4]
 
 
 def test_simulate_uses_the_status_selected_by_the_previous_iteration() -> None:

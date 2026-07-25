@@ -5,6 +5,7 @@ from pathlib import Path
 
 from simulator.configuration import ConfigurationError, load_config
 from simulator.logging import configure_logging
+from simulator.metrics import build_metric_collectors
 from simulator.simulation import Simulation
 
 
@@ -30,12 +31,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     configure_logging(config.logging)
-    # Metric collectors are intentionally empty until their configuration and
-    # implementations exist. The metrics implementation must construct the
-    # configured collectors here and pass them to Simulation; Simulation must
-    # remain unaware of how collectors are selected.
-    simulation = Simulation(config, metric_collectors=())
+    metric_collectors = build_metric_collectors(config.simulation.metrics)
+    simulation = Simulation(config, metric_collectors=metric_collectors)
     simulation.simulate()
+    for collector in metric_collectors:
+        collector.finish_calculation()
     return 0
 
 
