@@ -13,8 +13,10 @@ class Simulation:
     ) -> None:
         self._config = config
         self._timestamp = 0
-        self._environment = Environment(config.environment)
-        self._controller = build_controller(config.controller)
+        self._environment = Environment(
+            config.environment,
+            build_controller(config.controller),
+        )
         self._metric_collectors = list(metric_collectors)
 
     @property
@@ -31,9 +33,6 @@ class Simulation:
 
     def _step(self) -> None:
         self._timestamp += 1
-        self._environment.update_batteries()
-        rus = self._controller.update(self._environment.get_rus(), self._timestamp)
-        self._environment.set_rus(rus)
-        self._environment.update_connectivity_graph()
+        self._environment.update(self._timestamp)
         for collector in self._metric_collectors:
             collector.collect(self._environment)
