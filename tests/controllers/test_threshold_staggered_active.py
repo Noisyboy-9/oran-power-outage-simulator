@@ -34,6 +34,14 @@ def test_rejects_invalid_threshold(threshold: object) -> None:
         ThresholdStaggeredActiveController(threshold)  # type: ignore[arg-type]
 
 
+def test_returns_the_supplied_ru_list() -> None:
+    rus = [make_ru(1)]
+
+    result = ThresholdStaggeredActiveController(50.0).update(rus, timestamp=0)
+
+    assert result is rus
+
+
 def test_keeps_every_ru_active_before_all_reach_threshold() -> None:
     odd_ru = make_ru(1)
     even_ru = make_ru(2)
@@ -94,7 +102,11 @@ def test_transition_remains_permanent_for_later_ru_collection() -> None:
 
 def test_empty_list_does_not_start_transition() -> None:
     controller = ThresholdStaggeredActiveController(50.0)
-    controller.update([], timestamp=0)
+    rus: list[RU] = []
+
+    result = controller.update(rus, timestamp=0)
+
+    assert result is rus
     odd_ru = make_ru(1)
     even_ru = make_ru(2)
 

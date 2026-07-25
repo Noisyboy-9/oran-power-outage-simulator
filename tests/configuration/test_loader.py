@@ -27,6 +27,8 @@ environment:
 controller:
   kind: threshold_staggered_active
   threshold_percentage: 50.0
+simulation:
+  steps: 3
 logging:
   logger_name: simulator
   level: INFO
@@ -55,6 +57,18 @@ def test_loads_typed_configuration(tmp_path: Path) -> None:
     assert config.environment.ru.initial_status is RUStatus.ACTIVE
     assert config.logging.level == logging.INFO
     assert config.controller.kind is ControllerKind.THRESHOLD_STAGGERED_ACTIVE
+
+
+def test_loads_simulation_steps(tmp_path: Path) -> None:
+    assert load_config(write_config(tmp_path, VALID_YAML)).simulation.steps == 3
+
+
+@pytest.mark.parametrize("steps", ["0", "-1", "true", "1.5"])
+def test_rejects_invalid_simulation_steps(tmp_path: Path, steps: str) -> None:
+    contents = VALID_YAML.replace("steps: 3", f"steps: {steps}")
+
+    with pytest.raises(ConfigurationError, match="simulation.steps"):
+        load_config(write_config(tmp_path, contents))
 
 
 def test_loads_tracked_default_configuration() -> None:
