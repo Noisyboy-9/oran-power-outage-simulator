@@ -105,6 +105,16 @@ logger = structlog.get_logger(__name__)
 logger.info("simulation_started", timestamp=0)
 ```
 
+## Running a Simulation
+
+Run the application with an explicit YAML configuration path:
+
+```bash
+uv run python main.py --configs configs/default.yaml
+```
+
+The required configuration's `simulation.steps` value determines how many ordered simulation steps run. `main.py` loads configuration, configures logging, constructs configured metric collectors, and starts `Simulation`. `Simulation` owns the ordered step loop.
+
 ## Setup
 
 Install [uv](https://docs.astral.sh/uv/), then synchronize the development environment:
