@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement the configured `Simulation` entry point and its deterministic time-step lifecycle.
+**Goal:** Implement a configuration-driven `Simulation` entry point that runs exactly its configured number of deterministic steps.
 
-**Architecture:** `Simulation` receives an already-loaded `ApplicationConfig` and optional metric collectors. It creates and owns the `Environment` and RU controller, then coordinates one ordered update cycle. The environment retains ownership of mutable entities and connectivity state; metric collectors only observe the completed step.
+**Architecture:** `ApplicationConfig` contains a validated `SimulationConfig` with a positive step count. `Simulation` receives the already-loaded configuration and optional metric collectors, creates and owns the `Environment` and RU controller, then `simulate()` coordinates exactly that many private ordered update cycles. The environment retains ownership of mutable entities and connectivity state; metric collectors only observe completed steps.
 
 **Tech Stack:** Python 3.12, pytest, NetworkX, PyYAML, Ruff, uv.
 
@@ -13,24 +13,161 @@
 - Target Python 3.12 or newer; add type hints to public interfaces.
 - Keep domain objects independent of orchestration; controllers do not own the environment.
 - Keep metric collectors observational; `collect(environment)` must not change simulation flow.
-- Do not add concrete metrics, metric configuration, `main.py`, CLI parsing, mobility, simulation duration, or new dependencies.
+- Do not add concrete metrics, metric configuration, `main.py`, CLI parsing, mobility, or new dependencies.
 - Run project commands from the repository root with `uv`.
 
 ---
 
 ## File Structure
 
+- `src/simulator/configuration/models.py`: declares `SimulationConfig` and adds it to `ApplicationConfig`.
+- `src/simulator/configuration/loader.py`: parses and validates the required top-level `simulation.steps` mapping.
+- `src/simulator/configuration/__init__.py`: re-exports `SimulationConfig`.
+- `configs/default.yaml`: supplies the tracked default simulation step count.
+- `tests/configuration/test_models.py`: verifies `SimulationConfig` validation and immutability.
+- `tests/configuration/test_loader.py`: verifies loading and path-aware rejection of invalid `simulation.steps` values.
 - `src/simulator/metrics/base.py`: declares the public abstract `MetricCollector` interface.
 - `src/simulator/metrics/__init__.py`: re-exports `MetricCollector`.
 - `src/simulator/environment/environment.py`: owns public battery and connectivity update operations.
-- `src/simulator/simulation.py`: owns configuration-derived construction, timestamp, and ordered step coordination.
+- `src/simulator/simulation.py`: owns configuration-derived construction, timestamp, public run coordination, and private ordered step coordination.
 - `tests/metrics/test_base.py`: verifies the metric interface cannot be instantiated directly.
 - `tests/environment/test_environment.py`: verifies battery updates for current RU statuses.
 - `tests/environment/test_connectivity.py`: verifies graph rebuilding produces the next seeded graph state.
 - `tests/test_simulation.py`: verifies construction, step ordering, and collector observations using real configuration and controller behavior.
 - `README.md`: replaces the statement that orchestration is scaffolded with the implemented lifecycle and use example.
 
-### Task 1: Publish the Metric Collector Interface
+### Task 1: Add Validated Simulation Run Configuration
+
+**Files:**
+- Modify: `src/simulator/configuration/models.py`
+- Modify: `src/simulator/configuration/loader.py`
+- Modify: `src/simulator/configuration/__init__.py`
+- Modify: `configs/default.yaml`
+- Modify: `tests/configuration/test_models.py`
+- Modify: `tests/configuration/test_loader.py`
+
+**Interfaces:**
+- Produces: immutable `SimulationConfig(steps: int)` that rejects booleans, non-integers, and values below `1` with `ValueError`.
+- Produces: `ApplicationConfig.simulation: SimulationConfig`.
+- Produces: a required top-level YAML mapping `simulation: {steps: <positive integer>}` parsed by `load_config`.
+- Produces: `from simulator.configuration import SimulationConfig`.
+
+- [ ] **Step 1: Write the failing model tests**
+
+Append to `tests/configuration/test_models.py`:
+
+```python
+from simulator.configuration import SimulationConfig
+
+
+def test_simulation_config_accepts_positive_steps() -> None:
+    assert SimulationConfig(steps=10_000).steps == 10_000
+
+
+@pytest.mark.parametrize("steps", [0, -1, True, 1.5, "10"])
+def test_simulation_config_rejects_non_positive_or_non_integer_steps(
+    steps: object,
+) -> None:
+    with pytest.raises(ValueError, match="steps"):
+        SimulationConfig(steps=steps)  # type: ignore[arg-type]
+```
+
+- [ ] **Step 2: Run model tests to verify they fail**
+
+Run: `uv run pytest tests/configuration/test_models.py -v`
+
+Expected: FAIL during collection because `SimulationConfig` is not exported.
+
+- [ ] **Step 3: Implement the typed model and public export**
+
+```python
+@dataclass(frozen=True)
+class SimulationConfig:
+    steps: int
+
+    def __post_init__(self) -> None:
+        if isinstance(self.steps, bool) or not isinstance(self.steps, int) or self.steps <= 0:
+            raise ValueError("steps must be a positive integer")
+```
+
+Add `simulation: SimulationConfig` to `ApplicationConfig`, and add
+`SimulationConfig` to the imports and `__all__` list in
+`src/simulator/configuration/__init__.py`.
+
+- [ ] **Step 4: Run model tests to verify they pass**
+
+Run: `uv run pytest tests/configuration/test_models.py -v`
+
+Expected: PASS; only positive integers construct the immutable model.
+
+- [ ] **Step 5: Write the failing loader tests**
+
+Add this section to `VALID_YAML` in `tests/configuration/test_loader.py`:
+
+```yaml
+simulation:
+  steps: 3
+```
+
+Then add:
+
+```python
+def test_loads_simulation_steps(tmp_path: Path) -> None:
+    assert load_config(write_config(tmp_path, VALID_YAML)).simulation.steps == 3
+
+
+@pytest.mark.parametrize("steps", ["0", "-1", "true", "1.5"])
+def test_rejects_invalid_simulation_steps(tmp_path: Path, steps: str) -> None:
+    contents = VALID_YAML.replace("steps: 3", f"steps: {steps}")
+
+    with pytest.raises(ConfigurationError, match="simulation.steps"):
+        load_config(write_config(tmp_path, contents))
+```
+
+- [ ] **Step 6: Run loader tests to verify they fail**
+
+Run: `uv run pytest tests/configuration/test_loader.py -v`
+
+Expected: FAIL because the current root-key validator rejects `simulation`.
+
+- [ ] **Step 7: Implement YAML parsing and update the default config**
+
+Change the root required-key set to include `simulation`, call a new
+`_parse_simulation(raw_config["simulation"], "simulation")`, and pass its
+result as `simulation=` when constructing `ApplicationConfig`.
+
+```python
+def _parse_simulation(value: object, path: str) -> SimulationConfig:
+    raw_simulation = _require_mapping(value, path)
+    _require_exact_keys(raw_simulation, {"steps"}, path)
+    return _construct(
+        SimulationConfig,
+        path,
+        steps=_require_positive_integer(raw_simulation["steps"], f"{path}.steps"),
+    )
+```
+
+Add the following to `configs/default.yaml`:
+
+```yaml
+simulation:
+  steps: 10000
+```
+
+- [ ] **Step 8: Run configuration tests to verify they pass**
+
+Run: `uv run pytest tests/configuration -v`
+
+Expected: PASS; valid YAML returns `config.simulation.steps`, and malformed step values report `simulation.steps`.
+
+- [ ] **Step 9: Commit the simulation configuration**
+
+```bash
+git add configs/default.yaml src/simulator/configuration tests/configuration
+git commit -m "feat: configure simulation run length"
+```
+
+### Task 2: Publish the Metric Collector Interface
 
 **Files:**
 - Create: `tests/metrics/test_base.py`
@@ -95,7 +232,7 @@ git add src/simulator/metrics tests/metrics/test_base.py
 git commit -m "feat: add metric collector interface"
 ```
 
-### Task 2: Give the Environment Its Step-State Operations
+### Task 3: Give the Environment Its Step-State Operations
 
 **Files:**
 - Modify: `src/simulator/environment/environment.py`
@@ -196,7 +333,7 @@ git add src/simulator/environment/environment.py tests/environment
 git commit -m "feat: add environment step updates"
 ```
 
-### Task 3: Implement Simulation Construction and Ordered Steps
+### Task 4: Implement Simulation Construction and Configured Runs
 
 **Files:**
 - Modify: `src/simulator/simulation.py`
@@ -206,7 +343,8 @@ git commit -m "feat: add environment step updates"
 - Consumes: `ApplicationConfig`, `Environment`, `build_controller`, and an iterable of `MetricCollector` instances.
 - Produces: `Simulation(config: ApplicationConfig, metric_collectors: Iterable[MetricCollector] = ())`.
 - Produces: read-only `timestamp: int` and `environment: Environment` properties.
-- Produces: `step() -> None`, ordered as environment battery update, controller status update with the new timestamp, graph rebuild, then each collector's `collect(environment)`.
+- Produces: public `simulate() -> None`, which calls private `_step() -> None` exactly `config.simulation.steps` times.
+- Produces: private `_step() -> None`, ordered as environment battery update, controller status update with the new timestamp, graph rebuild, then each collector's `collect(environment)`.
 
 - [ ] **Step 1: Write the failing construction test and test helpers**
 
@@ -218,6 +356,7 @@ from simulator.configuration import (
     ControllerConfig,
     ControllerKind,
     LoggingConfig,
+    SimulationConfig,
     TimestampConfig,
 )
 from simulator.domain import RUStatus
@@ -226,7 +365,7 @@ from simulator.simulation import Simulation
 from simulator.environment import EnvironmentConfig, MapConfig, RUConfig
 
 
-def make_application_config() -> ApplicationConfig:
+def make_application_config(steps: int = 1) -> ApplicationConfig:
     return ApplicationConfig(
         environment=EnvironmentConfig(
             map=MapConfig(width=2, height=1),
@@ -253,6 +392,7 @@ def make_application_config() -> ApplicationConfig:
             cache_loggers_on_first_use=True,
             propagate=False,
         ),
+        simulation=SimulationConfig(steps=steps),
     )
 
 
@@ -286,6 +426,7 @@ class Simulation:
         config: ApplicationConfig,
         metric_collectors: Iterable[MetricCollector] = (),
     ) -> None:
+        self._config = config
         self._timestamp = 0
         self._environment = Environment(config.environment)
         self._controller = build_controller(config.controller)
@@ -323,14 +464,14 @@ class RecordingCollector(MetricCollector):
         )
 
 
-def test_step_updates_state_before_collecting_metrics() -> None:
+def test_simulate_updates_state_before_collecting_metrics() -> None:
     collector = RecordingCollector()
     simulation = Simulation(make_application_config(), [collector])
     ru = simulation.environment.get_rus()[0]
     user = simulation.environment.get_users()[0]
     initial_weight = simulation.environment.get_connection_weight(user, ru)
 
-    simulation.step()
+    simulation.simulate()
 
     assert simulation.timestamp == 1
     assert ru.get_battery() == 9.0
@@ -349,16 +490,21 @@ from simulator.environment import Environment
 
 - [ ] **Step 6: Run the ordered-step test to verify it fails**
 
-Run: `uv run pytest tests/test_simulation.py::test_step_updates_state_before_collecting_metrics -v`
+Run: `uv run pytest tests/test_simulation.py::test_simulate_updates_state_before_collecting_metrics -v`
 
-Expected: FAIL with `AttributeError` because `Simulation.step` does not exist.
+Expected: FAIL with `AttributeError` because `Simulation.simulate` does not exist.
 
-- [ ] **Step 7: Implement the minimal ordered step**
 
-Add this method to `Simulation`:
+- [ ] **Step 7: Implement the public run loop and private ordered step**
+
+Add these methods to `Simulation`:
 
 ```python
-def step(self) -> None:
+def simulate(self) -> None:
+    for _ in range(self._config.simulation.steps):
+        self._step()
+
+def _step(self) -> None:
     self._timestamp += 1
     self._environment.update_batteries()
     self._controller.update(self._environment.get_rus(), self._timestamp)
@@ -372,11 +518,10 @@ def step(self) -> None:
 Append this test to `tests/test_simulation.py`:
 
 ```python
-def test_next_step_uses_the_status_selected_by_the_previous_step() -> None:
-    simulation = Simulation(make_application_config())
+def test_simulate_uses_the_status_selected_by_the_previous_iteration() -> None:
+    simulation = Simulation(make_application_config(steps=2))
 
-    simulation.step()
-    simulation.step()
+    simulation.simulate()
 
     ru = simulation.environment.get_rus()[0]
     assert simulation.timestamp == 2
@@ -386,7 +531,7 @@ def test_next_step_uses_the_status_selected_by_the_previous_step() -> None:
 
 Run: `uv run pytest tests/test_simulation.py -v`
 
-Expected: PASS; the first step consumes sleep power and the second consumes active power.
+Expected: PASS; `simulate()` performs two iterations: the first consumes sleep power and the second consumes active power.
 
 - [ ] **Step 9: Commit simulation orchestration**
 
@@ -395,13 +540,13 @@ git add src/simulator/simulation.py tests/test_simulation.py
 git commit -m "feat: orchestrate simulation steps"
 ```
 
-### Task 4: Document the Implemented Lifecycle
+### Task 5: Document the Implemented Lifecycle
 
 **Files:**
 - Modify: `README.md`
 
 **Interfaces:**
-- Documents: `Simulation(config, metric_collectors=())`, `timestamp`, `environment`, and `step()`.
+- Documents: `Simulation(config, metric_collectors=())`, `timestamp`, `environment`, and `simulate()`.
 - Documents: the future application composition root owns configuration loading, logging configuration, and collector creation.
 
 - [ ] **Step 1: Update the capability summary**
@@ -425,9 +570,10 @@ Simulation orchestration is implemented; concrete metric calculations remain for
 
 `Simulation` is the entry point for one already-loaded `ApplicationConfig`.
 It creates the environment and configured RU controller, starts at timestamp
-`0`, and accepts optional metric collector instances. Calling `step()` increments
-the timestamp, depletes batteries using their previous statuses, applies the RU
-controller, rebuilds connectivity, and then calls each collector with the
+`0`, and accepts optional metric collector instances. Calling `simulate()` runs
+the positive `simulation.steps` count from configuration. Each private step
+increments the timestamp, depletes batteries using prior statuses, applies the
+RU controller, rebuilds connectivity, and then calls each collector with the
 completed environment.
 
 ```python
@@ -436,7 +582,7 @@ from simulator.simulation import Simulation
 
 config = load_config(Path("configs/default.yaml"))
 simulation = Simulation(config)
-simulation.step()
+simulation.simulate()
 ```
 
 A future application entry point will load configuration, configure logging,
@@ -455,13 +601,13 @@ git add README.md
 git commit -m "docs: describe simulation lifecycle"
 ```
 
-### Task 5: Run Full Verification
+### Task 6: Run Full Verification
 
 **Files:**
-- Verify: all changed files from Tasks 1-4.
+- Verify: all changed files from Tasks 1-5.
 
 **Interfaces:**
-- Verifies: the public metric collector interface, environment step operations, simulation construction, ordered lifecycle, and project quality gates.
+- Verifies: run configuration parsing, the public metric collector interface, environment step operations, configured simulation runs, and project quality gates.
 
 - [ ] **Step 1: Run the full test suite**
 
