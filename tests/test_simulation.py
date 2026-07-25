@@ -79,10 +79,11 @@ class RecordingController(RUController):
         self.received_rus: list[RU] | None = None
         self.received_timestamp: int | None = None
 
-    def update(self, rus: list[RU], timestamp: int) -> None:
+    def update(self, rus: list[RU], timestamp: int) -> list[RU]:
         self.received_rus = rus
         self.received_timestamp = timestamp
         self._lifecycle.append(("controller", timestamp))
+        return rus
 
 
 class LifecycleCollector(MetricCollector):
