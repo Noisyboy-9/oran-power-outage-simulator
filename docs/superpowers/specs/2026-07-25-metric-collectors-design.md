@@ -63,9 +63,13 @@ Duplicate, out-of-order, skipped, and negative timestamps raise `ValueError`.
 This makes a missing measurement explicit instead of silently calculating a
 metric over a misleading horizon.
 
-`finish_calculation()` raises `ValueError` when called before an observation.
-All configured simulations have at least the initial `t=0` observation, so
-this protects direct collector use without affecting normal runs.
+Each collector tracks its most recently recorded timestamp as
+`_last_collected_timestamp: int | None`, initially `None`. It updates that
+marker only after successfully storing an observation. `finish_calculation()`
+raises `ValueError` while the marker is `None`; it therefore distinguishes a
+missing observation from a valid zero-valued observation. All configured
+simulations have at least the initial `t=0` observation, so this protects direct
+collector use without affecting normal runs.
 
 Each collector retains its metric-relevant observations indexed by timestamp.
 This makes the result auditable and supports future reporting without giving
