@@ -60,10 +60,12 @@ order in which the environment and RU controller run.
 the RU list to be adopted by the environment. Controllers must return the same
 RU instances supplied to them; they do not create replacement RUs. The
 environment exposes `replace_rus(rus)` to make that ownership handoff explicit
-and validates that the list contains exactly the instances it already owns.
-This preserves the map occupancy and location indexes, which are keyed by RU
-identity, while allowing the simulation controller to pass the policy result
-back to the environment.
+and adopts the supplied list without validation. The environment and RU
+controllers are a trusted boundary: controllers are responsible for returning
+a compatible list containing the existing RU instances, as documented on the
+`RUController` interface. This preserves the map occupancy and location
+indexes, which are keyed by RU identity, while allowing the simulation
+controller to pass the policy result back to the environment.
 
 `MetricCollector` is an abstract interface with
 `collect(environment: Environment) -> None`. Collectors observe the environment
@@ -85,10 +87,10 @@ records the observed environment state; it is used only to prove the public
 observer contract and ordering. Environment battery and connectivity operations
 also receive focused tests.
 
-Controller and environment tests also verify that every controller returns its
-input RU list and that `replace_rus` rejects a list containing any replacement
-RU instance. Simulation orchestration tests verify that the list returned by
-the controller is passed to `replace_rus` before connectivity is rebuilt.
+Controller and environment tests verify that every controller returns its input
+RU list and that `replace_rus` adopts the supplied list. Simulation
+orchestration tests verify that the list returned by the controller is passed
+to `replace_rus` before connectivity is rebuilt.
 
 ## Scope Boundaries
 
