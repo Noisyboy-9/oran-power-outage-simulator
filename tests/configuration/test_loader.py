@@ -141,17 +141,6 @@ def test_rejects_invalid_metrics_configuration(
     ("contents", "path"),
     [
         (
-            VALID_YAML.replace(
-                (
-                    "    collectors:\n"
-                    "      - average_emergency_qos\n"
-                    "      - network_lifetime"
-                ),
-                "    collectors: []",
-            ),
-            "simulation.metrics.collectors",
-        ),
-        (
             VALID_YAML.replace("      - network_lifetime", "      - 1"),
             "simulation.metrics.collectors",
         ),
@@ -182,6 +171,17 @@ def test_rejects_invalid_metrics_structure(
 ) -> None:
     with pytest.raises(ConfigurationError, match=path):
         load_config(write_config(tmp_path, contents))
+
+
+def test_loads_empty_metrics_collectors(tmp_path: Path) -> None:
+    contents = VALID_YAML.replace(
+        ("    collectors:\n      - average_emergency_qos\n      - network_lifetime"),
+        "    collectors: []",
+    )
+
+    metrics = load_config(write_config(tmp_path, contents)).simulation.metrics
+
+    assert metrics.collectors == ()
 
 
 @pytest.mark.parametrize("steps", ["0", "-1", "true", "1.5"])

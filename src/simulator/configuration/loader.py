@@ -233,8 +233,6 @@ def _parse_simulation(value: object, path: str) -> SimulationConfig:
     )
     collectors_path = _join_path(metrics_path, "collectors")
     raw_collectors = _require_sequence(raw_metrics["collectors"], collectors_path)
-    if not raw_collectors:
-        raise ConfigurationError(f"{collectors_path}: must not be empty")
     collectors: list[MetricKind] = []
     for raw_collector in raw_collectors:
         collector_name = _require_string(raw_collector, collectors_path)
