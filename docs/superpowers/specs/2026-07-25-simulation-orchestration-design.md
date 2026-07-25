@@ -56,6 +56,15 @@ post-depletion battery state to choose statuses for the next timestamp.
 owns the RU collection and graph. `Simulation` retains responsibility for the
 order in which the environment and RU controller run.
 
+`RUController.update(rus, timestamp) -> list[RU]` updates statuses and returns
+the RU list to be adopted by the environment. Controllers must return the same
+RU instances supplied to them; they do not create replacement RUs. The
+environment exposes `replace_rus(rus)` to make that ownership handoff explicit
+and validates that the list contains exactly the instances it already owns.
+This preserves the map occupancy and location indexes, which are keyed by RU
+identity, while allowing the simulation controller to pass the policy result
+back to the environment.
+
 `MetricCollector` is an abstract interface with
 `collect(environment: Environment) -> None`. Collectors observe the environment
 after all step-state updates and must not control the simulation.
@@ -75,6 +84,11 @@ metric collection after all state updates. A test-only recording collector
 records the observed environment state; it is used only to prove the public
 observer contract and ordering. Environment battery and connectivity operations
 also receive focused tests.
+
+Controller and environment tests also verify that every controller returns its
+input RU list and that `replace_rus` rejects a list containing any replacement
+RU instance. Simulation orchestration tests verify that the list returned by
+the controller is passed to `replace_rus` before connectivity is rebuilt.
 
 ## Scope Boundaries
 
