@@ -20,8 +20,9 @@ positive integer; zero, negative, boolean, and non-integer values are rejected
 with the same path-aware configuration errors used by the existing schema.
 
 `Simulation(config: ApplicationConfig, metric_collectors: Iterable[MetricCollector] = ())`
-creates its `Environment` and `RUController` from the supplied configuration's
-environment and controller branches. The timestamp starts at `0`.
+builds the configured `RUController`, passes it to
+`Environment(config.environment, controller)`, and owns the timestamp, which
+starts at `0`.
 
 Configuration loading, logging setup, collector construction, and command-line
 argument handling belong to a future `main.py`. It will load an
@@ -39,7 +40,9 @@ without giving them control of the environment or simulation flow.
 `_step()` method exactly `config.simulation.steps` times. After it returns, the
 timestamp therefore equals the configured step count.
 
-`_step()` advances the timestamp by one and performs these operations in order:
+`_step()` advances the timestamp by one, calls
+`environment.update(timestamp)`, and then calls each metric collector.
+`Environment.update(timestamp)` performs these operations in order:
 
 1. Update every RU battery using its status from the preceding timestamp.
 2. Give the full RU list and new timestamp to the configured `RUController`.
@@ -51,10 +54,10 @@ post-depletion battery state to choose statuses for the next timestamp.
 
 ## Component Boundaries
 
-`Environment` remains independent of controllers. It exposes focused
-`update_batteries()` and `update_connectivity_graph()` operations because it
-owns the RU collection and graph. `Simulation` retains responsibility for the
-order in which the environment and RU controller run.
+`Environment` owns the `RUController` as part of its mutable simulation state.
+It exposes `update(timestamp)` because it owns the RU collection, controller,
+and connectivity graph. `Simulation` retains responsibility only for advancing
+global time and collecting metrics after environment state updates.
 
 `RUController.update(rus, timestamp) -> list[RU]` updates statuses and returns
 the RU list to be adopted by the environment. Controllers must return the same
@@ -92,9 +95,10 @@ observer contract and ordering. Environment battery and connectivity operations
 also receive focused tests.
 
 Controller and environment tests verify that every controller returns its input
-RU list and that `set_rus` adopts the supplied list. Simulation
-orchestration tests verify that the list returned by the controller is passed
-to `set_rus` before connectivity is rebuilt.
+RU list, `set_rus` adopts the supplied list, and `Environment.update()` runs
+the complete ordered state lifecycle. Simulation tests verify that it delegates
+the update to the environment before collecting metrics. Existing environment
+getters remain public and unchanged.
 
 ## Scope Boundaries
 
