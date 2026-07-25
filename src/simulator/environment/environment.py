@@ -94,15 +94,6 @@ class Environment:
     def get_rus(self) -> list[RU]:
         return self._rus.copy()
 
-    def set_rus(self, rus: list[RU]) -> None:
-        """Store RUs returned by a trusted controller.
-
-        The list is copied so a caller cannot subsequently change the
-        environment's collection structure through its original list reference.
-        The contained RU objects remain shared, retaining their updated statuses.
-        """
-        self._rus = rus.copy()
-
     def get_users(self) -> list[User]:
         return self._users.copy()
 
@@ -115,16 +106,16 @@ class Environment:
     def get_connectivity_graph(self) -> nx.Graph:
         return self._connectivity_graph.copy()
 
-    def update_batteries(self) -> None:
+    def update(self, timestamp: int) -> None:
+        self._update_batteries()
+        self._rus = self._controller.update(self.get_rus(), timestamp).copy()
+        self._update_connectivity_graph()
+
+    def _update_batteries(self) -> None:
         for ru in self._rus:
             ru.update_battery()
 
-    def update(self, timestamp: int) -> None:
-        self.update_batteries()
-        self.set_rus(self._controller.update(self.get_rus(), timestamp))
-        self.update_connectivity_graph()
-
-    def update_connectivity_graph(self) -> None:
+    def _update_connectivity_graph(self) -> None:
         self._connectivity_graph = self._create_connectivity_graph()
 
     def get_connection_weight(self, user: User, ru: RU) -> float:

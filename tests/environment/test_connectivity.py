@@ -130,7 +130,7 @@ def test_rebuilds_connectivity_graph_with_the_next_seeded_random_values() -> Non
     environment = make_environment(random_seed=7)
     initial_weights = edge_weights_by_ids(environment)
 
-    environment.update_connectivity_graph()
+    environment.update(timestamp=1)
 
     assert edge_weights_by_ids(environment) != initial_weights
 
