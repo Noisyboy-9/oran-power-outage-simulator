@@ -1,13 +1,25 @@
 import pytest
 
+from simulator.controllers import AlwaysActiveController, RUController
 from simulator.domain.errors import DomainValidationError
-from simulator.domain.ru import RUStatus
+from simulator.domain.ru import RU, RUStatus
 from simulator.environment import (
     Environment,
     EnvironmentConfig,
     MapConfig,
     RUConfig,
 )
+
+
+class RecordingController(RUController):
+    def __init__(self) -> None:
+        self.received_rus: list[RU] | None = None
+        self.received_timestamp: int | None = None
+
+    def update(self, rus: list[RU], timestamp: int) -> list[RU]:
+        self.received_rus = rus
+        self.received_timestamp = timestamp
+        return rus
 
 
 def make_config(
@@ -52,7 +64,7 @@ def placement_signature(environment: Environment) -> tuple[tuple[int, int, int],
 
 
 def test_creates_row_major_map() -> None:
-    environment = Environment(make_config(width=4, height=3))
+    environment = Environment(make_config(width=4, height=3), AlwaysActiveController())
 
     environment_map = environment.get_map()
     assert len(environment_map) == 3
@@ -71,7 +83,8 @@ def test_creates_uniform_rus_and_sequential_entity_ids() -> None:
             initial_status=RUStatus.SLEEP,
             active_consumption=3.0,
             sleep_consumption=0.25,
-        )
+        ),
+        AlwaysActiveController(),
     )
 
     rus = environment.get_rus()
@@ -87,7 +100,7 @@ def test_creates_uniform_rus_and_sequential_entity_ids() -> None:
 
 
 def test_places_every_entity_in_one_distinct_cell() -> None:
-    environment = Environment(make_config())
+    environment = Environment(make_config(), AlwaysActiveController())
 
     occupied_cells = [
         cell
@@ -108,14 +121,14 @@ def test_places_every_entity_in_one_distinct_cell() -> None:
 
 
 def test_equal_seeds_reproduce_placements() -> None:
-    first = Environment(make_config(random_seed=19))
-    second = Environment(make_config(random_seed=19))
+    first = Environment(make_config(random_seed=19), AlwaysActiveController())
+    second = Environment(make_config(random_seed=19), AlwaysActiveController())
 
     assert placement_signature(first) == placement_signature(second)
 
 
 def test_collection_getters_protect_environment_structure() -> None:
-    environment = Environment(make_config())
+    environment = Environment(make_config(), AlwaysActiveController())
 
     returned_map = environment.get_map()
     returned_map[0].clear()
@@ -136,7 +149,9 @@ def test_collection_getters_protect_environment_structure() -> None:
 
 
 def test_returned_ru_objects_retain_mutable_state() -> None:
-    environment = Environment(make_config(initial_status=RUStatus.ACTIVE))
+    environment = Environment(
+        make_config(initial_status=RUStatus.ACTIVE), AlwaysActiveController()
+    )
 
     environment.get_rus()[0].set_status(RUStatus.SLEEP)
 
@@ -144,7 +159,9 @@ def test_returned_ru_objects_retain_mutable_state() -> None:
 
 
 def test_sets_rus_without_sharing_the_list_container() -> None:
-    environment = Environment(make_config(ru_count=1, user_count=1))
+    environment = Environment(
+        make_config(ru_count=1, user_count=1), AlwaysActiveController()
+    )
     rus = environment.get_rus()
 
     environment.set_rus(rus)
@@ -161,7 +178,8 @@ def test_updates_each_ru_battery_using_its_current_status() -> None:
             initial_battery=10.0,
             active_consumption=2.0,
             sleep_consumption=0.5,
-        )
+        ),
+        AlwaysActiveController(),
     )
     active_ru, sleeping_ru = environment.get_rus()
     active_ru.set_status(RUStatus.ACTIVE)
@@ -173,8 +191,34 @@ def test_updates_each_ru_battery_using_its_current_status() -> None:
     assert sleeping_ru.get_battery() == 9.5
 
 
+def test_update_applies_batteries_before_the_injected_controller() -> None:
+    controller = RecordingController()
+    environment = Environment(
+        make_config(
+            ru_count=2,
+            user_count=1,
+            initial_battery=10.0,
+            active_consumption=2.0,
+            sleep_consumption=0.5,
+        ),
+        controller,
+    )
+    active_ru, sleeping_ru = environment.get_rus()
+    active_ru.set_status(RUStatus.ACTIVE)
+    sleeping_ru.set_status(RUStatus.SLEEP)
+
+    environment.update(1)
+
+    assert controller.received_rus == environment.get_rus()
+    assert controller.received_timestamp == 1
+    assert active_ru.get_battery() == 8.0
+    assert active_ru.get_status() is RUStatus.ACTIVE
+    assert sleeping_ru.get_battery() == 9.5
+    assert sleeping_ru.get_status() is RUStatus.SLEEP
+
+
 def test_propagates_ru_validation_for_invalid_uniform_settings() -> None:
     config = make_config(initial_battery=0.0)
 
     with pytest.raises(DomainValidationError, match="battery"):
-        Environment(config)
+        Environment(config, AlwaysActiveController())

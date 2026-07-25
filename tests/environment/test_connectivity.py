@@ -1,6 +1,7 @@
 import networkx as nx
 import pytest
 
+from simulator.controllers import AlwaysActiveController
 from simulator.domain.ru import RU, RUStatus
 from simulator.domain.user import User
 from simulator.environment import (
@@ -33,7 +34,8 @@ def make_environment(
             ),
             user_count=user_count,
             random_seed=random_seed,
-        )
+        ),
+        AlwaysActiveController(),
     )
 
 
