@@ -62,16 +62,16 @@ global time and collecting metrics after environment state updates.
 `RUController.update(rus, timestamp) -> list[RU]` updates statuses and returns
 the RU list to be adopted by the environment. Controllers must return the same
 RU instances supplied to them; they do not create replacement RUs. The
-environment exposes `set_rus(rus)` to make that ownership handoff explicit
-and adopts a shallow copy of the supplied list without validation. The
+environment adopts the result directly inside `update(timestamp)` with
+`self._rus = controller.update(...).copy()`, without validation. The
 environment and RU
 controllers are a trusted boundary: controllers are responsible for returning
 a compatible list containing the existing RU instances, as documented on the
 `RUController` interface. This preserves the map occupancy and location
 indexes, which are keyed by RU identity, while allowing the simulation
-controller to pass the policy result back to the environment. `set_rus` keeps
-a copy of the list so callers cannot later alter the environment's collection
-structure through the list reference they passed; the RU objects themselves
+controller to delegate the policy result to the environment. The shallow copy
+prevents a controller from later altering the environment's collection
+structure through its returned list reference; the RU objects themselves
 remain shared, retaining their updated statuses.
 
 `MetricCollector` is an abstract interface with
@@ -95,10 +95,10 @@ observer contract and ordering. Environment battery and connectivity operations
 also receive focused tests.
 
 Controller and environment tests verify that every controller returns its input
-RU list, `set_rus` adopts the supplied list, and `Environment.update()` runs
-the complete ordered state lifecycle. Simulation tests verify that it delegates
-the update to the environment before collecting metrics. Existing environment
-getters remain public and unchanged.
+RU list and that `Environment.update()` both adopts an isolated shallow copy
+and runs the complete ordered state lifecycle. Simulation tests verify that it
+delegates the update to the environment before collecting metrics. Existing
+environment getters remain public and unchanged.
 
 ## Scope Boundaries
 
