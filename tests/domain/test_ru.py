@@ -9,7 +9,9 @@ def make_ru(**overrides: object) -> RU:
         "id": 1,
         "battery": 10.0,
         "status": RUStatus.ACTIVE,
-        "active_consumption": 2.0,
+        "zero_user_consumption": 1.0,
+        "one_user_consumption": 2.0,
+        "multi_user_consumption_per_user": 1.5,
         "sleep_consumption": 0.5,
     }
     values.update(overrides)
@@ -45,13 +47,19 @@ def test_rejects_invalid_status_update() -> None:
         ru.set_status("sleep")  # type: ignore[arg-type]
 
 
-def test_active_ru_uses_default_timestep() -> None:
+@pytest.mark.parametrize(
+    ("serviced_user_count", "expected_battery"),
+    [(0, 9.0), (1, 8.0), (2, 7.0), (3, 5.5)],
+)
+def test_active_ru_consumption_depends_on_serviced_user_count(
+    serviced_user_count: int, expected_battery: float
+) -> None:
     ru = make_ru()
 
-    result = ru.update_battery()
+    result = ru.update_battery(serviced_user_count=serviced_user_count)
 
     assert result is None
-    assert ru.get_battery() == pytest.approx(8.0)
+    assert ru.get_battery() == pytest.approx(expected_battery)
     assert ru.get_initial_capacity() == 10.0
 
 
@@ -61,6 +69,20 @@ def test_sleeping_ru_uses_custom_timestep() -> None:
     ru.update_battery(delta_time=4.0)
 
     assert ru.get_battery() == pytest.approx(8.0)
+
+
+def test_sleeping_ru_uses_sleep_consumption_regardless_of_serviced_users() -> None:
+    ru = make_ru(status=RUStatus.SLEEP)
+
+    ru.update_battery(serviced_user_count=3)
+
+    assert ru.get_battery() == pytest.approx(9.5)
+
+
+@pytest.mark.parametrize("serviced_user_count", [-1, True, 1.5])
+def test_rejects_invalid_serviced_user_count(serviced_user_count: object) -> None:
+    with pytest.raises(DomainValidationError, match="serviced_user_count"):
+        make_ru().update_battery(serviced_user_count=serviced_user_count)  # type: ignore[arg-type]
 
 
 def test_battery_is_clamped_at_zero() -> None:
@@ -76,11 +98,15 @@ def test_battery_is_clamped_at_zero() -> None:
     [
         ("id", 0),
         ("battery", 0.0),
-        ("active_consumption", 0.0),
+        ("zero_user_consumption", 0.0),
+        ("one_user_consumption", 0.0),
+        ("multi_user_consumption_per_user", 0.0),
         ("sleep_consumption", 0.0),
         ("id", -1),
         ("battery", -1.0),
-        ("active_consumption", -1.0),
+        ("zero_user_consumption", -1.0),
+        ("one_user_consumption", -1.0),
+        ("multi_user_consumption_per_user", -1.0),
         ("sleep_consumption", -1.0),
     ],
 )
