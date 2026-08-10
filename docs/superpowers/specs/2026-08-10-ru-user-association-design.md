@@ -93,6 +93,20 @@ positive battery, retain its graph edge, and meet
 Average Emergency QoS and Network Lifetime observe the same exclusive model
 as capacity and battery load.
 
+The helper must still check graph-edge presence separately. A zero service-link
+threshold accepts every existing association edge but must not turn the
+`get_connection_weight()` no-edge sentinel (`0.0`) into service. Looking up an
+association is a read-only operation: collectors never create, repair, or
+recompute associations.
+
+`AverageEmergencyQoSCollector` and `NetworkLifetimeCollector` keep their
+current public constructors, timestamp observations, result calculations, and
+factory wiring. Their observed served-user fractions change solely through the
+shared helper. `AverageRUBatteryDepletionTimeCollector` remains association
+agnostic: it reads only RU batteries, so it needs no production-code change.
+Metric collector collection must continue not to mutate either RU state,
+connectivity, or the association mapping.
+
 ## Testing
 
 Tests will cover:
@@ -109,7 +123,12 @@ Tests will cover:
   update;
 - calculation of RU load from associated qualifying users rather than all
   qualifying graph edges; and
-- service metrics rejecting an otherwise valid non-associated RU connection.
+- service metrics rejecting an otherwise valid non-associated RU connection,
+  an unassociated user, and an association whose link is below the threshold;
+- Average Emergency QoS and Network Lifetime inheriting the association-aware
+  served fraction without changes to their result formulas; and
+- metric collection leaving the association mapping unchanged, while the
+  battery-depletion collector continues to work without querying associations.
 
 All tests remain deterministic by directly constructing controlled graphs
 where association choice matters. The complete pytest suite, Ruff lint, Ruff
@@ -120,4 +139,5 @@ format check, and Git whitespace check are required before completion.
 This change adds no mobility, per-user demand, handover persistence, custom
 acceptance policies, heterogeneous RU capacities, or external admission
 logic. It does not alter connectivity edge generation, controller scheduling,
-the meaning of `minimum_service_link_weight`, or result formatting.
+the meaning of `minimum_service_link_weight`, metric result formulas, or result
+formatting.
