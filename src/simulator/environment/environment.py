@@ -4,13 +4,18 @@ import networkx as nx
 
 from simulator.controllers import RUController
 from simulator.domain.map_cell import MapCell
-from simulator.domain.ru import RU
+from simulator.domain.ru import RU, RUStatus
 from simulator.domain.user import User
 from simulator.environment.config import EnvironmentConfig
 
 
 class Environment:
-    def __init__(self, config: EnvironmentConfig, controller: RUController) -> None:
+    def __init__(
+        self,
+        config: EnvironmentConfig,
+        controller: RUController,
+        minimum_service_link_weight: float,
+    ) -> None:
         self._config = config
         self._controller = controller
         self._random = random.Random(config.random_seed)
@@ -21,6 +26,8 @@ class Environment:
         self._user_locations: dict[User, MapCell] = {}
         self._place_entities()
         self._connectivity_graph = self._create_connectivity_graph()
+        self._user_associations: dict[User, RU | None] = {}
+        self._update_associations(minimum_service_link_weight)
 
     def _create_map(self) -> list[list[MapCell]]:
         return [
@@ -113,6 +120,7 @@ class Environment:
         self._update_batteries(minimum_service_link_weight)
         self._rus = self._controller.update(self.get_rus(), timestamp).copy()
         self._update_connectivity_graph()
+        self._update_associations(minimum_service_link_weight)
 
     def _serviced_user_count(self, ru: RU, minimum_service_link_weight: float) -> int:
         return sum(
@@ -133,6 +141,32 @@ class Environment:
     def _update_connectivity_graph(self) -> None:
         self._connectivity_graph = self._create_connectivity_graph()
 
+    def _update_associations(self, minimum_service_link_weight: float) -> None:
+        accepted_user_counts = {ru: 0 for ru in self._rus}
+        associations: dict[User, RU | None] = {}
+        for user in sorted(self._users, key=lambda candidate: candidate.id):
+            candidates = sorted(
+                (
+                    (ru, float(edge["weight"]))
+                    for ru in self._rus
+                    if (edge := self._connectivity_graph.get_edge_data(user, ru))
+                    is not None
+                    and edge["weight"] >= minimum_service_link_weight
+                ),
+                key=lambda candidate: (-candidate[1], candidate[0].id),
+            )
+            associated_ru = None
+            for ru, _weight in candidates:
+                if ru.get_status() is RUStatus.SLEEP or ru.get_battery() <= 0:
+                    continue
+                if accepted_user_counts[ru] >= ru.user_capacity:
+                    continue
+                associated_ru = ru
+                accepted_user_counts[ru] += 1
+                break
+            associations[user] = associated_ru
+        self._user_associations = associations
+
     def get_connection_weight(self, user: User, ru: RU) -> float:
         owns_user = any(candidate is user for candidate in self._users)
         owns_ru = any(candidate is ru for candidate in self._rus)
@@ -143,3 +177,8 @@ class Environment:
         if edge is None:
             return 0.0
         return float(edge["weight"])
+
+    def get_associated_ru(self, user: User) -> RU | None:
+        if not any(candidate is user for candidate in self._users):
+            return None
+        return self._user_associations[user]

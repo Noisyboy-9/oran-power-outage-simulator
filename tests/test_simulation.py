@@ -93,8 +93,11 @@ class RecordingCollector(MetricCollector):
 
 
 class RecordingEnvironment:
-    def __init__(self, lifecycle: list[str]) -> None:
+    def __init__(
+        self, lifecycle: list[str], minimum_service_link_weight: float
+    ) -> None:
         self._lifecycle = lifecycle
+        self.minimum_service_link_weight = minimum_service_link_weight
         self.updates: list[tuple[int, float]] = []
 
     def update(self, timestamp: int, minimum_service_link_weight: float) -> None:
@@ -140,13 +143,26 @@ def test_simulate_delegates_environment_update_before_collecting_metrics(
         "build_controller",
         lambda _config: controller,
     )
-    environment = RecordingEnvironment(lifecycle)
+    environment: RecordingEnvironment | None = None
+
+    def create_environment(
+        _config: EnvironmentConfig,
+        _controller: object,
+        minimum_service_link_weight: float,
+    ) -> RecordingEnvironment:
+        nonlocal environment
+        environment = RecordingEnvironment(lifecycle, minimum_service_link_weight)
+        return environment
+
     monkeypatch.setattr(
         simulation_module,
         "Environment",
-        lambda _config, _controller: environment,
+        create_environment,
     )
     simulation = Simulation(make_application_config(), [collector])
+
+    assert environment is not None
+    assert environment.minimum_service_link_weight == 0.0
 
     simulation.simulate()
 

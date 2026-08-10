@@ -20,6 +20,7 @@ def make_environment(
     user_count: int = 1,
     coverage_radius: float = 2.0,
     random_seed: int = 7,
+    minimum_service_link_weight: float = 0.0,
 ) -> Environment:
     return Environment(
         EnvironmentConfig(
@@ -39,6 +40,7 @@ def make_environment(
             random_seed=random_seed,
         ),
         AlwaysActiveController(),
+        minimum_service_link_weight,
     )
 
 
@@ -166,3 +168,4 @@ def test_foreign_entities_have_no_connection() -> None:
 
     assert environment.get_connection_weight(foreign_user_with_same_id, owned_ru) == 0.0
     assert environment.get_connection_weight(owned_user, foreign_ru_with_same_id) == 0.0
+    assert environment.get_associated_ru(foreign_user_with_same_id) is None

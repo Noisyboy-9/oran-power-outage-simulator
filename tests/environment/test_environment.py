@@ -81,8 +81,19 @@ def replace_connectivity_graph(
     environment._connectivity_graph = controlled_graph
 
 
+def rebuild_associations(
+    environment: Environment,
+    weighted_edges: list[tuple[RU, User, float]],
+    minimum_service_link_weight: float,
+) -> None:
+    replace_connectivity_graph(environment, weighted_edges)
+    environment._update_associations(minimum_service_link_weight)
+
+
 def test_creates_row_major_map() -> None:
-    environment = Environment(make_config(width=4, height=3), AlwaysActiveController())
+    environment = Environment(
+        make_config(width=4, height=3), AlwaysActiveController(), 0.0
+    )
 
     environment_map = environment.get_map()
     assert len(environment_map) == 3
@@ -105,6 +116,7 @@ def test_creates_uniform_rus_and_sequential_entity_ids() -> None:
             sleep_consumption=0.25,
         ),
         AlwaysActiveController(),
+        0.0,
     )
 
     rus = environment.get_rus()
@@ -122,7 +134,7 @@ def test_creates_uniform_rus_and_sequential_entity_ids() -> None:
 
 
 def test_places_every_entity_in_one_distinct_cell() -> None:
-    environment = Environment(make_config(), AlwaysActiveController())
+    environment = Environment(make_config(), AlwaysActiveController(), 0.0)
 
     occupied_cells = [
         cell
@@ -143,14 +155,14 @@ def test_places_every_entity_in_one_distinct_cell() -> None:
 
 
 def test_equal_seeds_reproduce_placements() -> None:
-    first = Environment(make_config(random_seed=19), AlwaysActiveController())
-    second = Environment(make_config(random_seed=19), AlwaysActiveController())
+    first = Environment(make_config(random_seed=19), AlwaysActiveController(), 0.0)
+    second = Environment(make_config(random_seed=19), AlwaysActiveController(), 0.0)
 
     assert placement_signature(first) == placement_signature(second)
 
 
 def test_collection_getters_protect_environment_structure() -> None:
-    environment = Environment(make_config(), AlwaysActiveController())
+    environment = Environment(make_config(), AlwaysActiveController(), 0.0)
 
     returned_map = environment.get_map()
     returned_map[0].clear()
@@ -172,7 +184,7 @@ def test_collection_getters_protect_environment_structure() -> None:
 
 def test_returned_ru_objects_retain_mutable_state() -> None:
     environment = Environment(
-        make_config(initial_status=RUStatus.ACTIVE), AlwaysActiveController()
+        make_config(initial_status=RUStatus.ACTIVE), AlwaysActiveController(), 0.0
     )
 
     environment.get_rus()[0].set_status(RUStatus.SLEEP)
@@ -192,6 +204,7 @@ def test_update_applies_batteries_before_the_injected_controller() -> None:
             sleep_consumption=0.5,
         ),
         controller,
+        0.0,
     )
     active_ru, sleeping_ru = environment.get_rus()
     active_ru.set_status(RUStatus.ACTIVE)
@@ -209,7 +222,7 @@ def test_update_applies_batteries_before_the_injected_controller() -> None:
 
 def test_update_keeps_its_ru_list_isolated_from_controller_result() -> None:
     controller = RecordingController()
-    environment = Environment(make_config(ru_count=1, user_count=1), controller)
+    environment = Environment(make_config(ru_count=1, user_count=1), controller, 0.0)
 
     environment.update(1, minimum_service_link_weight=0.0)
     assert controller.received_rus is not None
@@ -235,6 +248,7 @@ def test_update_charges_an_active_ru_for_only_qualifying_current_links() -> None
             multi_user_consumption_per_user=1.5,
         ),
         RecordingController(),
+        0.0,
     )
     ru = environment.get_rus()[0]
     users = environment.get_users()
@@ -265,6 +279,7 @@ def test_update_charges_an_active_ru_at_zero_user_rate_without_qualifying_links(
             multi_user_consumption_per_user=1.5,
         ),
         RecordingController(),
+        0.0,
     )
     ru = environment.get_rus()[0]
     user = environment.get_users()[0]
@@ -279,4 +294,150 @@ def test_propagates_ru_validation_for_invalid_uniform_settings() -> None:
     config = make_config(initial_battery=0.0)
 
     with pytest.raises(DomainValidationError, match="battery"):
-        Environment(config, AlwaysActiveController())
+        Environment(config, AlwaysActiveController(), 0.0)
+
+
+def test_associates_a_user_with_the_highest_weight_qualifying_ru() -> None:
+    environment = Environment(
+        make_config(ru_count=2, user_count=1, user_capacity=1),
+        RecordingController(),
+        0.6,
+    )
+    first_ru, second_ru = environment.get_rus()
+    user = environment.get_users()[0]
+
+    rebuild_associations(
+        environment, [(first_ru, user, 0.6), (second_ru, user, 0.8)], 0.6
+    )
+
+    assert environment.get_associated_ru(user) is second_ru
+
+
+def test_rejects_edges_below_the_service_threshold_but_accepts_equal_weights() -> None:
+    environment = Environment(
+        make_config(ru_count=2, user_count=1, user_capacity=1),
+        RecordingController(),
+        0.6,
+    )
+    below_threshold_ru, threshold_ru = environment.get_rus()
+    user = environment.get_users()[0]
+
+    rebuild_associations(
+        environment,
+        [(below_threshold_ru, user, 0.59), (threshold_ru, user, 0.6)],
+        0.6,
+    )
+
+    assert environment.get_associated_ru(user) is threshold_ru
+
+
+def test_falls_back_when_a_higher_ranked_ru_is_full() -> None:
+    environment = Environment(
+        make_config(ru_count=2, user_count=2, user_capacity=1),
+        RecordingController(),
+        0.0,
+    )
+    first_ru, second_ru = environment.get_rus()
+    first_user, second_user = environment.get_users()
+
+    rebuild_associations(
+        environment,
+        [
+            (first_ru, first_user, 0.9),
+            (first_ru, second_user, 0.8),
+            (second_ru, second_user, 0.7),
+        ],
+        0.0,
+    )
+
+    assert environment.get_associated_ru(first_user) is first_ru
+    assert environment.get_associated_ru(second_user) is second_ru
+
+
+def test_leaves_a_user_unassociated_when_all_candidates_are_full() -> None:
+    environment = Environment(
+        make_config(ru_count=1, user_count=2, user_capacity=1),
+        RecordingController(),
+        0.0,
+    )
+    ru = environment.get_rus()[0]
+    first_user, second_user = environment.get_users()
+
+    rebuild_associations(
+        environment, [(ru, first_user, 0.9), (ru, second_user, 0.8)], 0.0
+    )
+
+    assert environment.get_associated_ru(second_user) is None
+
+
+def test_never_associates_more_users_than_an_ru_capacity() -> None:
+    environment = Environment(
+        make_config(ru_count=1, user_count=3, user_capacity=2),
+        RecordingController(),
+        0.0,
+    )
+    ru = environment.get_rus()[0]
+    users = environment.get_users()
+
+    rebuild_associations(environment, [(ru, user, 1.0) for user in users], 0.0)
+
+    assert sum(environment.get_associated_ru(user) is ru for user in users) == 2
+
+
+@pytest.mark.parametrize(
+    "status,deplete_battery", [(RUStatus.SLEEP, False), (RUStatus.ACTIVE, True)]
+)
+def test_does_not_associate_sleeping_or_depleted_rus(
+    status: RUStatus, deplete_battery: bool
+) -> None:
+    environment = Environment(
+        make_config(ru_count=1, user_count=1, initial_status=status),
+        RecordingController(),
+        0.0,
+    )
+    ru = environment.get_rus()[0]
+    user = environment.get_users()[0]
+    if deplete_battery:
+        ru.update_battery(delta_time=100.0)
+
+    rebuild_associations(environment, [(ru, user, 1.0)], 0.0)
+
+    assert environment.get_associated_ru(user) is None
+
+
+def test_breaks_equal_weight_ties_by_lower_ru_id() -> None:
+    environment = Environment(
+        make_config(ru_count=2, user_count=1, user_capacity=1),
+        RecordingController(),
+        0.0,
+    )
+    lower_id_ru, higher_id_ru = environment.get_rus()
+    user = environment.get_users()[0]
+
+    rebuild_associations(
+        environment, [(higher_id_ru, user, 0.8), (lower_id_ru, user, 0.8)], 0.0
+    )
+
+    assert environment.get_associated_ru(user) is lower_id_ru
+
+
+def test_rebuilds_associations_after_the_controller_activates_an_ru() -> None:
+    environment = Environment(
+        make_config(
+            width=2,
+            height=1,
+            ru_count=1,
+            user_count=1,
+            initial_status=RUStatus.SLEEP,
+            coverage_radius=2.0,
+        ),
+        AlwaysActiveController(),
+        0.0,
+    )
+    user = environment.get_users()[0]
+
+    assert environment.get_associated_ru(user) is None
+
+    environment.update(timestamp=1, minimum_service_link_weight=0.0)
+
+    assert environment.get_associated_ru(user) is environment.get_rus()[0]

@@ -16,6 +16,7 @@ class Simulation:
         self._environment = Environment(
             config.environment,
             build_controller(config.controller),
+            config.simulation.metrics.minimum_service_link_weight,
         )
         self._metric_collectors = list(metric_collectors)
 
