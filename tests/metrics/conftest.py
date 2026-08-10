@@ -36,6 +36,8 @@ def make_ru(id: int, status: RUStatus) -> RU:
         id=id,
         battery=10.0,
         status=status,
-        active_consumption=1.0,
+        zero_user_consumption=1.0,
+        one_user_consumption=2.0,
+        multi_user_consumption_per_user=1.5,
         sleep_consumption=0.5,
     )
