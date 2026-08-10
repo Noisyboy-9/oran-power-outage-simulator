@@ -28,7 +28,9 @@ def make_environment(
                 count=ru_count,
                 initial_battery=100.0,
                 initial_status=RUStatus.ACTIVE,
-                active_consumption=2.0,
+                zero_user_consumption=2.0,
+                one_user_consumption=2.0,
+                multi_user_consumption_per_user=1.5,
                 sleep_consumption=0.5,
                 coverage_radius=coverage_radius,
             ),
@@ -130,7 +132,7 @@ def test_rebuilds_connectivity_graph_with_the_next_seeded_random_values() -> Non
     environment = make_environment(random_seed=7)
     initial_weights = edge_weights_by_ids(environment)
 
-    environment.update(timestamp=1)
+    environment.update(timestamp=1, minimum_service_link_weight=0.0)
 
     assert edge_weights_by_ids(environment) != initial_weights
 
@@ -154,7 +156,9 @@ def test_foreign_entities_have_no_connection() -> None:
         id=owned_ru.id,
         battery=100.0,
         status=RUStatus.ACTIVE,
-        active_consumption=2.0,
+        zero_user_consumption=2.0,
+        one_user_consumption=2.0,
+        multi_user_consumption_per_user=1.5,
         sleep_consumption=0.5,
     )
 

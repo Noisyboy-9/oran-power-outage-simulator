@@ -24,7 +24,9 @@ def make_application_config(steps: int = 1) -> ApplicationConfig:
                 count=1,
                 initial_battery=10.0,
                 initial_status=RUStatus.SLEEP,
-                active_consumption=3.0,
+                zero_user_consumption=3.0,
+                one_user_consumption=2.0,
+                multi_user_consumption_per_user=1.5,
                 sleep_consumption=1.0,
                 coverage_radius=2.0,
             ),
@@ -92,8 +94,10 @@ class RecordingCollector(MetricCollector):
 class RecordingEnvironment:
     def __init__(self, lifecycle: list[str]) -> None:
         self._lifecycle = lifecycle
+        self.updates: list[tuple[int, float]] = []
 
-    def update(self, timestamp: int) -> None:
+    def update(self, timestamp: int, minimum_service_link_weight: float) -> None:
+        self.updates.append((timestamp, minimum_service_link_weight))
         self._lifecycle.append(f"environment.update:{timestamp}")
 
 
@@ -151,6 +155,7 @@ def test_simulate_delegates_environment_update_before_collecting_metrics(
         "collector.collect:1",
     ]
     assert component_environments == [environment, environment]
+    assert environment.updates == [(1, 0.0)]
 
 
 def test_simulate_collects_initial_state_once_and_each_updated_state() -> None:
@@ -175,7 +180,7 @@ def test_simulate_collects_initial_state_once_and_each_updated_state() -> None:
         RUStatus.ACTIVE,
     )
     assert collector.observations[1][3] != initial_weight
-    assert ru.get_battery() == 6.0
+    assert ru.get_battery() == 7.0
     assert ru.get_status() is RUStatus.ACTIVE
 
 
@@ -186,5 +191,5 @@ def test_simulate_uses_the_status_selected_by_the_previous_iteration() -> None:
 
     ru = simulation.environment.get_rus()[0]
     assert simulation.timestamp == 2
-    assert ru.get_battery() == 6.0
+    assert ru.get_battery() == 7.0
     assert ru.get_status() is RUStatus.ACTIVE

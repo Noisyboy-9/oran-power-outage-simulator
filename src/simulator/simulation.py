@@ -39,6 +39,9 @@ class Simulation:
 
     def _step(self) -> None:
         self._timestamp += 1
-        self._environment.update(self._timestamp)
+        self._environment.update(
+            self._timestamp,
+            self._config.simulation.metrics.minimum_service_link_weight,
+        )
         for collector in self._metric_collectors:
             collector.collect(self._environment, self._timestamp)
