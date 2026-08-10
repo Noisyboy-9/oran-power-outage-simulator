@@ -27,6 +27,26 @@ current users or decide whether to accept them: membership changes are
 environment-wide state, and capacity requires coordinated decisions across all
 users. The environment remains the only owner of the association mapping.
 
+## Environment State Representation
+
+The environment owns exactly two related structures; it does **not** own two
+graphs:
+
+| Structure | Contains | Answers |
+| --- | --- | --- |
+| Connectivity graph | Every in-range RU–user pair and its connection-weight edge | Which RUs could a user connect to, and how good is each possible link? |
+| Association map | One `User -> RU | None` result for every user | Which RU, if any, actually accepted this user? |
+
+The connectivity graph is the set of options. It is unchanged by capacity and
+may contain many edges for one user. The association map is the final admission
+decision. It is not a graph because every user has at most one accepted RU; a
+mapping is smaller, directly expresses that invariant, and avoids duplicating
+edge weights and topology.
+
+The association map never creates a connection-quality value. Whenever a
+consumer needs quality, it reads the edge for the selected RU from the
+connectivity graph.
+
 ## Association Algorithm
 
 `Environment` owns a private mapping from every owned `User` to either its
@@ -61,13 +81,22 @@ connectivity weights are regenerated each timestep, and controller decisions
 may make an RU unavailable; a fresh mapping represents the current timestep
 without introducing session, handover, or retry state.
 
+The resulting information flow is:
+
+```text
+connectivity graph (possible weighted links)
+    -> rank available candidates and apply capacity
+    -> association map (one accepted RU or None per user)
+    -> service metrics and RU user-load charging
+```
+
 ## Step Timing and Load-Aware Battery Integration
 
 After the preceding battery change is merged, the update order is:
 
 1. charge batteries from the existing graph and prior association mapping;
 2. apply the RU controller;
-3. rebuild the connectivity graph; and
+3. rebuild the connectivity graph of possible links; and
 4. rebuild the association mapping from the new graph and statuses.
 
 Thus, the load charged at a step describes associations that existed during the
@@ -86,12 +115,17 @@ semantics.
 
 ## Service Metrics
 
-The shared service helper no longer searches every RU for each user. It looks
-up the user's associated RU, then requires that one RU to be active, have
-positive battery, retain its graph edge, and meet
-`minimum_service_link_weight`. An unassociated user is not served. This makes
-Average Emergency QoS and Network Lifetime observe the same exclusive model
-as capacity and battery load.
+Currently, the shared service helper searches all RUs for each user and counts
+the user as served when *any* RU has a usable qualifying graph edge. It counts
+the user only once, but it does not record which RU supplied that service.
+
+The association-aware helper instead performs one association-map lookup per
+user. An unassociated user is not served. For an associated user, it checks
+only the selected RU: the connectivity graph must still contain that edge, the
+RU must be active with positive battery, and the edge weight must meet
+`minimum_service_link_weight`. It never searches alternative RUs. This makes
+Average Emergency QoS and Network Lifetime observe the same exclusive model as
+capacity and battery load.
 
 The helper must still check graph-edge presence separately. A zero service-link
 threshold accepts every existing association edge but must not turn the
