@@ -237,7 +237,7 @@ def test_exposes_update_as_its_only_public_update_operation() -> None:
     assert not hasattr(Environment, "update_connectivity_graph")
 
 
-def test_update_charges_an_active_ru_for_only_qualifying_current_links() -> None:
+def test_update_charges_an_active_ru_for_its_prior_qualifying_associations() -> None:
     environment = Environment(
         make_config(
             ru_count=1,
@@ -252,13 +252,14 @@ def test_update_charges_an_active_ru_for_only_qualifying_current_links() -> None
     )
     ru = environment.get_rus()[0]
     users = environment.get_users()
-    replace_connectivity_graph(
+    rebuild_associations(
         environment,
         [
             (ru, users[0], 0.6),
             (ru, users[1], 0.8),
             (ru, users[2], 0.5),
         ],
+        0.6,
     )
 
     environment.update(timestamp=1, minimum_service_link_weight=0.6)
@@ -266,7 +267,7 @@ def test_update_charges_an_active_ru_for_only_qualifying_current_links() -> None
     assert ru.get_battery() == pytest.approx(7.0)
 
 
-def test_update_charges_an_active_ru_at_zero_user_rate_without_qualifying_links() -> (
+def test_update_charges_an_active_ru_at_zero_user_rate_without_prior_associations() -> (
     None
 ):
     environment = Environment(
@@ -283,11 +284,64 @@ def test_update_charges_an_active_ru_at_zero_user_rate_without_qualifying_links(
     )
     ru = environment.get_rus()[0]
     user = environment.get_users()[0]
-    replace_connectivity_graph(environment, [(ru, user, 0.5)])
+    rebuild_associations(environment, [(ru, user, 0.5)], 0.6)
 
     environment.update(timestamp=1, minimum_service_link_weight=0.6)
 
     assert ru.get_battery() == pytest.approx(9.0)
+
+
+def test_update_charges_only_the_ru_selected_by_a_competing_user() -> None:
+    environment = Environment(
+        make_config(
+            ru_count=2,
+            user_count=1,
+            initial_battery=10.0,
+            zero_user_consumption=1.0,
+            one_user_consumption=2.0,
+        ),
+        RecordingController(),
+        0.6,
+    )
+    lower_weight_ru, selected_ru = environment.get_rus()
+    user = environment.get_users()[0]
+    rebuild_associations(
+        environment,
+        [(lower_weight_ru, user, 0.8), (selected_ru, user, 0.9)],
+        0.6,
+    )
+
+    environment.update(timestamp=1, minimum_service_link_weight=0.6)
+
+    assert lower_weight_ru.get_battery() == pytest.approx(9.0)
+    assert selected_ru.get_battery() == pytest.approx(8.0)
+
+
+def test_update_charges_each_ru_for_its_single_prior_association() -> None:
+    environment = Environment(
+        make_config(
+            ru_count=2,
+            user_count=2,
+            initial_battery=10.0,
+            zero_user_consumption=1.0,
+            one_user_consumption=2.0,
+            user_capacity=1,
+        ),
+        RecordingController(),
+        0.6,
+    )
+    first_ru, second_ru = environment.get_rus()
+    first_user, second_user = environment.get_users()
+    rebuild_associations(
+        environment,
+        [(first_ru, first_user, 0.9), (second_ru, second_user, 0.8)],
+        0.6,
+    )
+
+    environment.update(timestamp=1, minimum_service_link_weight=0.6)
+
+    assert first_ru.get_battery() == pytest.approx(8.0)
+    assert second_ru.get_battery() == pytest.approx(8.0)
 
 
 def test_propagates_ru_validation_for_invalid_uniform_settings() -> None:

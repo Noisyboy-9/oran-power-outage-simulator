@@ -117,26 +117,19 @@ class Environment:
         return self._connectivity_graph.copy()
 
     def update(self, timestamp: int, minimum_service_link_weight: float) -> None:
-        self._update_batteries(minimum_service_link_weight)
+        self._update_batteries()
         self._rus = self._controller.update(self.get_rus(), timestamp).copy()
         self._update_connectivity_graph()
         self._update_associations(minimum_service_link_weight)
 
-    def _serviced_user_count(self, ru: RU, minimum_service_link_weight: float) -> int:
+    def _serviced_user_count(self, ru: RU) -> int:
         return sum(
-            1
-            for user in self._users
-            if (edge := self._connectivity_graph.get_edge_data(ru, user)) is not None
-            and edge["weight"] >= minimum_service_link_weight
+            associated_ru is ru for associated_ru in self._user_associations.values()
         )
 
-    def _update_batteries(self, minimum_service_link_weight: float) -> None:
+    def _update_batteries(self) -> None:
         for ru in self._rus:
-            ru.update_battery(
-                serviced_user_count=self._serviced_user_count(
-                    ru, minimum_service_link_weight
-                )
-            )
+            ru.update_battery(serviced_user_count=self._serviced_user_count(ru))
 
     def _update_connectivity_graph(self) -> None:
         self._connectivity_graph = self._create_connectivity_graph()
