@@ -24,6 +24,7 @@ The environment is configured with immutable nested configuration objects and
 is fully built by its constructor:
 
 ```python
+from simulator.controllers import AlwaysActiveController
 from simulator.domain import RUStatus
 from simulator.environment import Environment, EnvironmentConfig, MapConfig, RUConfig
 
@@ -43,7 +44,12 @@ config = EnvironmentConfig(
     user_count=30,
     random_seed=42,
 )
-environment = Environment(config)
+controller = AlwaysActiveController()
+environment = Environment(
+    config,
+    controller,
+    minimum_service_link_weight=0.6,
+)
 ```
 
 Construction creates a row-major map, uniform RUs, users, collision-free
@@ -123,8 +129,12 @@ from simulator.logging import configure_logging
 
 config = load_config(Path("configs/default.yaml"))
 configure_logging(config.logging)
-environment = Environment(config.environment)
 controller = build_controller(config.controller)
+environment = Environment(
+    config.environment,
+    controller,
+    config.simulation.metrics.minimum_service_link_weight,
+)
 ```
 
 Modules obtain their own named logger and attach domain data as fields:

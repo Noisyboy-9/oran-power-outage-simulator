@@ -24,6 +24,13 @@ class RecordingController(RUController):
         return rus
 
 
+class SleepingController(RUController):
+    def update(self, rus: list[RU], timestamp: int) -> list[RU]:
+        for ru in rus:
+            ru.set_status(RUStatus.SLEEP)
+        return rus
+
+
 def make_config(
     *,
     width: int = 4,
@@ -527,3 +534,32 @@ def test_constructs_an_initial_association_for_an_active_qualifying_ru() -> None
     user = environment.get_users()[0]
 
     assert environment.get_associated_ru(user) is environment.get_rus()[0]
+
+
+def test_removes_an_association_after_controller_sleeps_its_ru() -> None:
+    minimum_service_link_weight = 0.3
+    environment = Environment(
+        make_config(
+            width=2,
+            height=1,
+            ru_count=1,
+            user_count=1,
+            initial_status=RUStatus.ACTIVE,
+            coverage_radius=2.0,
+        ),
+        SleepingController(),
+        minimum_service_link_weight,
+    )
+    ru = environment.get_rus()[0]
+    user = environment.get_users()[0]
+
+    assert environment.get_connection_weight(user, ru) >= minimum_service_link_weight
+    assert environment.get_associated_ru(user) is ru
+
+    environment.update(
+        timestamp=1,
+        minimum_service_link_weight=minimum_service_link_weight,
+    )
+
+    assert ru.get_status() is RUStatus.SLEEP
+    assert environment.get_associated_ru(user) is None
