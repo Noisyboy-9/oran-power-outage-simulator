@@ -11,6 +11,7 @@ def make_environment(served_user_count: int) -> FakeEnvironment:
     environment = FakeEnvironment(users, [ru])
     for user in users[:served_user_count]:
         environment.set_connection_weight(user, ru, 0.5)
+        environment.set_associated_ru(user, ru)
     return environment
 
 
@@ -38,6 +39,9 @@ def test_average_emergency_qos_counts_duplicate_active_coverage_once() -> None:
     environment_with_one_user_and_two_active_connections.set_connection_weight(
         user, second_ru, 0.75
     )
+    environment_with_one_user_and_two_active_connections.set_associated_ru(
+        user, first_ru
+    )
     collector = AverageEmergencyQoSCollector(minimum_service_link_weight=0.3)
 
     collector.collect(environment_with_one_user_and_two_active_connections, 0)
@@ -50,9 +54,11 @@ def test_average_emergency_qos_collection_does_not_mutate_environment() -> None:
     ru = make_ru(1, RUStatus.ACTIVE)
     environment = FakeEnvironment([user], [ru])
     environment.set_connection_weight(user, ru, 0.5)
+    environment.set_associated_ru(user, ru)
     before_batteries = [candidate.get_battery() for candidate in environment.get_rus()]
     before_statuses = [candidate.get_status() for candidate in environment.get_rus()]
     before_connections = environment._connection_weights.copy()
+    before_associations = environment._associations.copy()
 
     AverageEmergencyQoSCollector(minimum_service_link_weight=0.3).collect(
         environment, 0
@@ -65,12 +71,27 @@ def test_average_emergency_qos_collection_does_not_mutate_environment() -> None:
         candidate.get_status() for candidate in environment.get_rus()
     ] == before_statuses
     assert environment._connection_weights == before_connections
+    assert environment._associations == before_associations
 
 
 def test_average_emergency_qos_applies_service_link_threshold() -> None:
     collector = AverageEmergencyQoSCollector(minimum_service_link_weight=0.6)
 
     collector.collect(make_environment(2), 0)
+
+    assert collector.finish_calculation() == 0.0
+
+
+def test_average_emergency_qos_ignores_a_valid_non_associated_edge() -> None:
+    user = User(id=1)
+    associated_ru = make_ru(1, RUStatus.SLEEP)
+    alternative_ru = make_ru(2, RUStatus.ACTIVE)
+    environment = FakeEnvironment([user], [associated_ru, alternative_ru])
+    environment.set_connection_weight(user, alternative_ru, 0.5)
+    environment.set_associated_ru(user, associated_ru)
+
+    collector = AverageEmergencyQoSCollector(minimum_service_link_weight=0.3)
+    collector.collect(environment, 0)
 
     assert collector.finish_calculation() == 0.0
 

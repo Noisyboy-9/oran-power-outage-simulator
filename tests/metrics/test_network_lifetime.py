@@ -13,6 +13,7 @@ def make_environment(served_user_count: int) -> FakeEnvironment:
     environment = FakeEnvironment(users, [ru])
     for user in users[:served_user_count]:
         environment.set_connection_weight(user, ru, 0.5)
+        environment.set_associated_ru(user, ru)
     return environment
 
 
@@ -63,6 +64,7 @@ def test_network_lifetime_collection_does_not_mutate_environment() -> None:
     before_batteries = [ru.get_battery() for ru in environment.get_rus()]
     before_statuses = [ru.get_status() for ru in environment.get_rus()]
     before_connections = environment._connection_weights.copy()
+    before_associations = environment._associations.copy()
 
     NetworkLifetimeCollector(
         minimum_emergency_service_fraction=0.5,
@@ -72,6 +74,7 @@ def test_network_lifetime_collection_does_not_mutate_environment() -> None:
     assert [ru.get_battery() for ru in environment.get_rus()] == before_batteries
     assert [ru.get_status() for ru in environment.get_rus()] == before_statuses
     assert environment._connection_weights == before_connections
+    assert environment._associations == before_associations
 
 
 def test_network_lifetime_is_infinite_when_sla_is_never_violated() -> None:
@@ -104,6 +107,23 @@ def test_network_lifetime_applies_service_link_threshold() -> None:
     )
 
     collector.collect(make_environment(1), 0)
+
+    assert collector.finish_calculation() == 0.0
+
+
+def test_network_lifetime_ignores_a_valid_non_associated_edge() -> None:
+    user = User(id=1)
+    associated_ru = make_ru(1, RUStatus.SLEEP)
+    alternative_ru = make_ru(2, RUStatus.ACTIVE)
+    environment = FakeEnvironment([user], [associated_ru, alternative_ru])
+    environment.set_connection_weight(user, alternative_ru, 0.5)
+    environment.set_associated_ru(user, associated_ru)
+    collector = NetworkLifetimeCollector(
+        minimum_emergency_service_fraction=0.5,
+        minimum_service_link_weight=0.3,
+    )
+
+    collector.collect(environment, 0)
 
     assert collector.finish_calculation() == 0.0
 
