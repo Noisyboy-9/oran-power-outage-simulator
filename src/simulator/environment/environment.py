@@ -113,9 +113,7 @@ class Environment:
         self._rus = self._controller.update(self.get_rus(), timestamp).copy()
         self._update_connectivity_graph()
 
-    def _serviced_user_count(
-        self, ru: RU, minimum_service_link_weight: float
-    ) -> int:
+    def _serviced_user_count(self, ru: RU, minimum_service_link_weight: float) -> int:
         return sum(
             1
             for user in self._users

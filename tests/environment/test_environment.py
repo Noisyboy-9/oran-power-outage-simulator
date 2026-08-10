@@ -250,8 +250,9 @@ def test_update_charges_an_active_ru_for_only_qualifying_current_links() -> None
     assert ru.get_battery() == pytest.approx(7.0)
 
 
-def test_update_charges_an_active_ru_at_zero_user_rate_without_qualifying_links(
-) -> None:
+def test_update_charges_an_active_ru_at_zero_user_rate_without_qualifying_links() -> (
+    None
+):
     environment = Environment(
         make_config(
             ru_count=1,

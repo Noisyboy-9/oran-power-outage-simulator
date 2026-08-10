@@ -25,7 +25,9 @@ environment:
     count: 5
     initial_battery: 100.0
     initial_status: active
-    active_consumption: 2.0
+    zero_user_consumption: 1.0
+    one_user_consumption: 2.0
+    multi_user_consumption_per_user: 1.5
     sleep_consumption: 0.5
     coverage_radius: 1.0
   user_count: 4
@@ -67,6 +69,9 @@ def test_loads_typed_configuration(tmp_path: Path) -> None:
     config = load_config(write_config(tmp_path, VALID_YAML))
 
     assert config.environment.ru.initial_status is RUStatus.ACTIVE
+    assert config.environment.ru.zero_user_consumption == 1.0
+    assert config.environment.ru.one_user_consumption == 2.0
+    assert config.environment.ru.multi_user_consumption_per_user == 1.5
     assert config.logging.level == logging.INFO
     assert config.controller.kind is ControllerKind.THRESHOLD_STAGGERED_ACTIVE
 
@@ -339,9 +344,28 @@ def test_rejects_invalid_enum_and_unsupported_logging_values(
             VALID_YAML.replace("initial_battery: 100.0", "initial_battery: 0"),
             "environment.ru.initial_battery",
         ),
+        *[
+            (
+                VALID_YAML.replace(f"{field}: {valid_value}", f"{field}: {value}"),
+                f"environment.ru.{field}",
+            )
+            for field, valid_value in (
+                ("zero_user_consumption", "1.0"),
+                ("one_user_consumption", "2.0"),
+                ("multi_user_consumption_per_user", "1.5"),
+            )
+            for value in ("false", "0", "-1")
+        ],
         (
-            VALID_YAML.replace("active_consumption: 2.0", "active_consumption: false"),
-            "environment.ru.active_consumption",
+            VALID_YAML.replace(
+                (
+                    "zero_user_consumption: 1.0\n"
+                    "    one_user_consumption: 2.0\n"
+                    "    multi_user_consumption_per_user: 1.5"
+                ),
+                "active_consumption: 2.0",
+            ),
+            "environment.ru.active_consumption: unknown key",
         ),
         (
             VALID_YAML.replace("sleep_consumption: 0.5", "sleep_consumption: 0"),

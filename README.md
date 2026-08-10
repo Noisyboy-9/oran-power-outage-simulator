@@ -14,8 +14,8 @@ policies, and configured metric collection.
   another cell.
 - `User` represents a simulation user with a positive integer ID.
 - `RU` represents a radio unit with a positive integer ID, battery state,
-  active or sleep status, configured consumption rates, and status-based
-  battery depletion.
+  active or sleep status, zero-user, one-user, and multi-user-per-user active
+  consumption rates, a sleep consumption rate, and load-aware battery depletion.
 - Invalid domain values raise `DomainValidationError`.
 
 ## Environment
@@ -33,7 +33,9 @@ config = EnvironmentConfig(
         count=5,
         initial_battery=100.0,
         initial_status=RUStatus.ACTIVE,
-        active_consumption=2.0,
+        zero_user_consumption=1.0,
+        one_user_consumption=2.0,
+        multi_user_consumption_per_user=1.5,
         sleep_consumption=0.5,
         coverage_radius=8.0,
     ),
@@ -61,7 +63,7 @@ RU battery and status remain mutable through the RU's public methods.
 
 Each controller receives a list of RUs and the current timestamp, then updates
 RU statuses in place for that timestamp. An RU is activated only when it has at
-least enough battery for one active timestamp.
+least the configured zero-user active consumption available for one timestamp.
 
 - `AlwaysActiveController` activates every eligible RU.
 - `StaggeredActiveController` alternates even- and odd-ID groups every ten
@@ -79,9 +81,11 @@ controllers only select statuses.
 It creates the environment and configured RU controller, starts at timestamp
 `0`, and accepts optional metric collector instances. Calling `simulate()` runs
 the positive `simulation.steps` count from configuration. Each private step
-increments the timestamp, depletes batteries using prior statuses, applies the
-RU controller, rebuilds connectivity, and then calls each collector with the
-completed environment.
+increments the timestamp; depletes batteries using prior RU statuses and every
+qualifying RU-user link at the configured `minimum_service_link_weight`; applies
+the RU controller; rebuilds connectivity; and then calls each collector with the
+completed environment. A qualifying user may be counted by multiple RUs because
+the simulator has no association policy.
 
 ```python
 from pathlib import Path
