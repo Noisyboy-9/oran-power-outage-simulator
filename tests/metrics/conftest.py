@@ -8,9 +8,7 @@ class FakeEnvironment:
         self._users = users
         self._rus = rus
         self._connection_weights: dict[tuple[User, RU], float] = {}
-        self._associations: dict[User, RU | None] = {
-            user: None for user in users
-        }
+        self._associations: dict[User, RU | None] = {user: None for user in users}
 
     def get_users(self) -> list[User]:
         return self._users.copy()

@@ -27,7 +27,7 @@ def _served_user_fraction(
         and associated_ru.get_status() is RUStatus.ACTIVE
         and associated_ru.get_battery() > 0
         and environment.get_connection_weight(user, associated_ru)
-            >= minimum_service_link_weight
+        >= minimum_service_link_weight
         for user in users
     )
     return served_user_count / len(users)
