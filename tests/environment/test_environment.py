@@ -331,6 +331,20 @@ def test_rejects_edges_below_the_service_threshold_but_accepts_equal_weights() -
     assert environment.get_associated_ru(user) is threshold_ru
 
 
+def test_leaves_a_user_unassociated_with_only_a_below_threshold_edge() -> None:
+    environment = Environment(
+        make_config(ru_count=1, user_count=1, user_capacity=1),
+        RecordingController(),
+        0.6,
+    )
+    ru = environment.get_rus()[0]
+    user = environment.get_users()[0]
+
+    rebuild_associations(environment, [(ru, user, 0.59)], 0.6)
+
+    assert environment.get_associated_ru(user) is None
+
+
 def test_falls_back_when_a_higher_ranked_ru_is_full() -> None:
     environment = Environment(
         make_config(ru_count=2, user_count=2, user_capacity=1),
@@ -439,5 +453,23 @@ def test_rebuilds_associations_after_the_controller_activates_an_ru() -> None:
     assert environment.get_associated_ru(user) is None
 
     environment.update(timestamp=1, minimum_service_link_weight=0.0)
+
+    assert environment.get_associated_ru(user) is environment.get_rus()[0]
+
+
+def test_constructs_an_initial_association_for_an_active_qualifying_ru() -> None:
+    environment = Environment(
+        make_config(
+            width=2,
+            height=1,
+            ru_count=1,
+            user_count=1,
+            initial_status=RUStatus.ACTIVE,
+            coverage_radius=2.0,
+        ),
+        AlwaysActiveController(),
+        0.0,
+    )
+    user = environment.get_users()[0]
 
     assert environment.get_associated_ru(user) is environment.get_rus()[0]

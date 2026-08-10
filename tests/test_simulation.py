@@ -16,7 +16,9 @@ from simulator.metrics import MetricCollector
 from simulator.simulation import Simulation
 
 
-def make_application_config(steps: int = 1) -> ApplicationConfig:
+def make_application_config(
+    steps: int = 1, minimum_service_link_weight: float = 0.0
+) -> ApplicationConfig:
     return ApplicationConfig(
         environment=EnvironmentConfig(
             map=MapConfig(width=2, height=1),
@@ -51,7 +53,7 @@ def make_application_config(steps: int = 1) -> ApplicationConfig:
             metrics=MetricsConfig(
                 collectors=(),
                 minimum_emergency_service_fraction=0.8,
-                minimum_service_link_weight=0.0,
+                minimum_service_link_weight=minimum_service_link_weight,
             ),
         ),
     )
@@ -159,10 +161,12 @@ def test_simulate_delegates_environment_update_before_collecting_metrics(
         "Environment",
         create_environment,
     )
-    simulation = Simulation(make_application_config(), [collector])
+    simulation = Simulation(
+        make_application_config(minimum_service_link_weight=0.73), [collector]
+    )
 
     assert environment is not None
-    assert environment.minimum_service_link_weight == 0.0
+    assert environment.minimum_service_link_weight == 0.73
 
     simulation.simulate()
 
@@ -172,7 +176,7 @@ def test_simulate_delegates_environment_update_before_collecting_metrics(
         "collector.collect:1",
     ]
     assert component_environments == [environment, environment]
-    assert environment.updates == [(1, 0.0)]
+    assert environment.updates == [(1, 0.73)]
 
 
 def test_simulate_collects_initial_state_once_and_each_updated_state() -> None:
