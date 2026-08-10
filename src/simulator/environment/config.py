@@ -33,6 +33,7 @@ class RUConfig:
     one_user_consumption: float
     multi_user_consumption_per_user: float
     sleep_consumption: float
+    user_capacity: int
     coverage_radius: float
 
     def __post_init__(self) -> None:
@@ -43,6 +44,7 @@ class RUConfig:
             "multi_user_consumption_per_user", self.multi_user_consumption_per_user
         )
         _require_positive_number("sleep_consumption", self.sleep_consumption)
+        _require_positive_integer("user_capacity", self.user_capacity)
         _require_positive_number("coverage_radius", self.coverage_radius)
 
 

@@ -39,6 +39,7 @@ class Environment:
                 one_user_consumption=config.one_user_consumption,
                 multi_user_consumption_per_user=config.multi_user_consumption_per_user,
                 sleep_consumption=config.sleep_consumption,
+                user_capacity=config.user_capacity,
             )
             for ru_id in range(1, config.count + 1)
         ]

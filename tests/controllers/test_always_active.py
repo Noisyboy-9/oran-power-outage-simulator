@@ -22,6 +22,7 @@ def make_ru(
         one_user_consumption=one_user_consumption,
         multi_user_consumption_per_user=multi_user_consumption_per_user,
         sleep_consumption=0.5,
+        user_capacity=100,
     )
 
 

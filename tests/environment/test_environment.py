@@ -36,6 +36,7 @@ def make_config(
     one_user_consumption: float = 2.0,
     multi_user_consumption_per_user: float = 1.5,
     sleep_consumption: float = 0.5,
+    user_capacity: int = 100,
     coverage_radius: float = 4.0,
     random_seed: int | None = 7,
 ) -> EnvironmentConfig:
@@ -49,6 +50,7 @@ def make_config(
             one_user_consumption=one_user_consumption,
             multi_user_consumption_per_user=multi_user_consumption_per_user,
             sleep_consumption=sleep_consumption,
+            user_capacity=user_capacity,
             coverage_radius=coverage_radius,
         ),
         user_count=user_count,

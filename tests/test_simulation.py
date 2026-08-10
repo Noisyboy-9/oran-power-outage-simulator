@@ -28,6 +28,7 @@ def make_application_config(steps: int = 1) -> ApplicationConfig:
                 one_user_consumption=2.0,
                 multi_user_consumption_per_user=1.5,
                 sleep_consumption=1.0,
+                user_capacity=100,
                 coverage_radius=2.0,
             ),
             user_count=1,

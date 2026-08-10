@@ -32,6 +32,7 @@ def make_environment(
                 one_user_consumption=2.0,
                 multi_user_consumption_per_user=1.5,
                 sleep_consumption=0.5,
+                user_capacity=100,
                 coverage_radius=coverage_radius,
             ),
             user_count=user_count,
@@ -160,6 +161,7 @@ def test_foreign_entities_have_no_connection() -> None:
         one_user_consumption=2.0,
         multi_user_consumption_per_user=1.5,
         sleep_consumption=0.5,
+        user_capacity=100,
     )
 
     assert environment.get_connection_weight(foreign_user_with_same_id, owned_ru) == 0.0
