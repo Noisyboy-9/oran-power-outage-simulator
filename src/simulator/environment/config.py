@@ -29,12 +29,20 @@ class RUConfig:
     count: int
     initial_battery: float
     initial_status: RUStatus
-    active_consumption: float
+    zero_user_consumption: float
+    one_user_consumption: float
+    multi_user_consumption_per_user: float
     sleep_consumption: float
     coverage_radius: float
 
     def __post_init__(self) -> None:
         _require_positive_integer("count", self.count)
+        _require_positive_number("zero_user_consumption", self.zero_user_consumption)
+        _require_positive_number("one_user_consumption", self.one_user_consumption)
+        _require_positive_number(
+            "multi_user_consumption_per_user", self.multi_user_consumption_per_user
+        )
+        _require_positive_number("sleep_consumption", self.sleep_consumption)
         _require_positive_number("coverage_radius", self.coverage_radius)
 
 

@@ -10,13 +10,17 @@ def make_ru(
     id: int = 1,
     battery: float = 10.0,
     status: RUStatus = RUStatus.SLEEP,
-    active_consumption: float = 2.0,
+    zero_user_consumption: float = 1.0,
+    one_user_consumption: float = 2.0,
+    multi_user_consumption_per_user: float = 1.5,
 ) -> RU:
     return RU(
         id=id,
         battery=battery,
         status=status,
-        active_consumption=active_consumption,
+        zero_user_consumption=zero_user_consumption,
+        one_user_consumption=one_user_consumption,
+        multi_user_consumption_per_user=multi_user_consumption_per_user,
         sleep_consumption=0.5,
     )
 
@@ -35,7 +39,19 @@ def test_activates_ru_with_more_than_required_battery() -> None:
 
 
 def test_activates_ru_with_exactly_required_battery() -> None:
-    ru = make_ru(battery=2.0)
+    ru = make_ru(battery=1.0)
+
+    AlwaysActiveController().update([ru], timestamp=4)
+
+    assert ru.get_status() is RUStatus.ACTIVE
+
+
+def test_activates_ru_with_exactly_the_zero_user_consumption() -> None:
+    ru = make_ru(
+        battery=1.0,
+        zero_user_consumption=1.0,
+        one_user_consumption=2.0,
+    )
 
     AlwaysActiveController().update([ru], timestamp=4)
 
@@ -43,7 +59,7 @@ def test_activates_ru_with_exactly_required_battery() -> None:
 
 
 def test_sleeps_ru_with_insufficient_battery() -> None:
-    ru = make_ru(battery=1.0, status=RUStatus.ACTIVE)
+    ru = make_ru(battery=0.5, status=RUStatus.ACTIVE)
 
     AlwaysActiveController().update([ru], timestamp=4)
 
@@ -51,7 +67,7 @@ def test_sleeps_ru_with_insufficient_battery() -> None:
 
 
 def test_underpowered_ru_remains_asleep() -> None:
-    ru = make_ru(battery=1.0, status=RUStatus.ACTIVE)
+    ru = make_ru(battery=0.5, status=RUStatus.ACTIVE)
 
     AlwaysActiveController().update([ru], timestamp=4)
 

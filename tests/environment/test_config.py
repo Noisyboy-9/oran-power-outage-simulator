@@ -16,7 +16,9 @@ def make_ru_config(**overrides: object) -> RUConfig:
         "count": 2,
         "initial_battery": 100.0,
         "initial_status": RUStatus.ACTIVE,
-        "active_consumption": 2.0,
+        "zero_user_consumption": 1.0,
+        "one_user_consumption": 2.0,
+        "multi_user_consumption_per_user": 1.5,
         "sleep_consumption": 0.5,
         "coverage_radius": 4.0,
     }
@@ -87,6 +89,24 @@ def test_rejects_invalid_ru_count(count: object) -> None:
 def test_rejects_invalid_coverage_radius(coverage_radius: object) -> None:
     with pytest.raises(EnvironmentValidationError, match="coverage_radius"):
         make_ru_config(coverage_radius=coverage_radius)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        (field, value)
+        for field in (
+            "zero_user_consumption",
+            "one_user_consumption",
+            "multi_user_consumption_per_user",
+            "sleep_consumption",
+        )
+        for value in (0.0, -1.0, True, "1")
+    ],
+)
+def test_rejects_invalid_ru_consumption_rates(field: str, value: object) -> None:
+    with pytest.raises(EnvironmentValidationError, match=field):
+        make_ru_config(**{field: value})
 
 
 @pytest.mark.parametrize(

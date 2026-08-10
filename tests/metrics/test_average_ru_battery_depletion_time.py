@@ -13,8 +13,24 @@ def make_environment() -> FakeEnvironment:
     return FakeEnvironment(
         [],
         [
-            RU(1, 2.0, RUStatus.ACTIVE, 1.0, 0.5),
-            RU(2, 3.0, RUStatus.ACTIVE, 1.0, 0.5),
+            RU(
+                id=1,
+                battery=2.0,
+                status=RUStatus.ACTIVE,
+                zero_user_consumption=1.0,
+                one_user_consumption=2.0,
+                multi_user_consumption_per_user=1.5,
+                sleep_consumption=0.5,
+            ),
+            RU(
+                id=2,
+                battery=3.0,
+                status=RUStatus.ACTIVE,
+                zero_user_consumption=1.0,
+                one_user_consumption=2.0,
+                multi_user_consumption_per_user=1.5,
+                sleep_consumption=0.5,
+            ),
         ],
     )
 

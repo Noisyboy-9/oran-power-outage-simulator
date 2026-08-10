@@ -1,8 +1,10 @@
+import networkx as nx
 import pytest
 
 from simulator.controllers import AlwaysActiveController, RUController
 from simulator.domain.errors import DomainValidationError
 from simulator.domain.ru import RU, RUStatus
+from simulator.domain.user import User
 from simulator.environment import (
     Environment,
     EnvironmentConfig,
@@ -30,7 +32,9 @@ def make_config(
     user_count: int = 3,
     initial_battery: float = 100.0,
     initial_status: RUStatus = RUStatus.ACTIVE,
-    active_consumption: float = 2.0,
+    zero_user_consumption: float = 2.0,
+    one_user_consumption: float = 2.0,
+    multi_user_consumption_per_user: float = 1.5,
     sleep_consumption: float = 0.5,
     coverage_radius: float = 4.0,
     random_seed: int | None = 7,
@@ -41,7 +45,9 @@ def make_config(
             count=ru_count,
             initial_battery=initial_battery,
             initial_status=initial_status,
-            active_consumption=active_consumption,
+            zero_user_consumption=zero_user_consumption,
+            one_user_consumption=one_user_consumption,
+            multi_user_consumption_per_user=multi_user_consumption_per_user,
             sleep_consumption=sleep_consumption,
             coverage_radius=coverage_radius,
         ),
@@ -63,6 +69,16 @@ def placement_signature(environment: Environment) -> tuple[tuple[int, int, int],
     return tuple(ru_locations + user_locations)
 
 
+def replace_connectivity_graph(
+    environment: Environment,
+    weighted_edges: list[tuple[RU, User, float]],
+) -> None:
+    controlled_graph = nx.Graph()
+    controlled_graph.add_nodes_from([*environment.get_rus(), *environment.get_users()])
+    controlled_graph.add_weighted_edges_from(weighted_edges)
+    environment._connectivity_graph = controlled_graph
+
+
 def test_creates_row_major_map() -> None:
     environment = Environment(make_config(width=4, height=3), AlwaysActiveController())
 
@@ -81,7 +97,9 @@ def test_creates_uniform_rus_and_sequential_entity_ids() -> None:
             user_count=3,
             initial_battery=80.0,
             initial_status=RUStatus.SLEEP,
-            active_consumption=3.0,
+            zero_user_consumption=3.0,
+            one_user_consumption=2.0,
+            multi_user_consumption_per_user=1.5,
             sleep_consumption=0.25,
         ),
         AlwaysActiveController(),
@@ -95,7 +113,9 @@ def test_creates_uniform_rus_and_sequential_entity_ids() -> None:
         assert ru.get_battery() == 80.0
         assert ru.get_initial_capacity() == 80.0
         assert ru.get_status() is RUStatus.SLEEP
-        assert ru.active_consumption == 3.0
+        assert ru.zero_user_consumption == 3.0
+        assert ru.one_user_consumption == 2.0
+        assert ru.multi_user_consumption_per_user == 1.5
         assert ru.sleep_consumption == 0.25
 
 
@@ -165,7 +185,8 @@ def test_update_applies_batteries_before_the_injected_controller() -> None:
             ru_count=2,
             user_count=1,
             initial_battery=10.0,
-            active_consumption=2.0,
+            zero_user_consumption=2.0,
+            one_user_consumption=2.0,
             sleep_consumption=0.5,
         ),
         controller,
@@ -174,7 +195,7 @@ def test_update_applies_batteries_before_the_injected_controller() -> None:
     active_ru.set_status(RUStatus.ACTIVE)
     sleeping_ru.set_status(RUStatus.SLEEP)
 
-    environment.update(1)
+    environment.update(1, minimum_service_link_weight=0.0)
 
     assert controller.received_rus == environment.get_rus()
     assert controller.received_timestamp == 1
@@ -188,7 +209,7 @@ def test_update_keeps_its_ru_list_isolated_from_controller_result() -> None:
     controller = RecordingController()
     environment = Environment(make_config(ru_count=1, user_count=1), controller)
 
-    environment.update(1)
+    environment.update(1, minimum_service_link_weight=0.0)
     assert controller.received_rus is not None
     controller.received_rus.clear()
 
@@ -199,6 +220,57 @@ def test_exposes_update_as_its_only_public_update_operation() -> None:
     assert not hasattr(Environment, "set_rus")
     assert not hasattr(Environment, "update_batteries")
     assert not hasattr(Environment, "update_connectivity_graph")
+
+
+def test_update_charges_an_active_ru_for_only_qualifying_current_links() -> None:
+    environment = Environment(
+        make_config(
+            ru_count=1,
+            user_count=3,
+            initial_battery=10.0,
+            zero_user_consumption=1.0,
+            one_user_consumption=2.0,
+            multi_user_consumption_per_user=1.5,
+        ),
+        RecordingController(),
+    )
+    ru = environment.get_rus()[0]
+    users = environment.get_users()
+    replace_connectivity_graph(
+        environment,
+        [
+            (ru, users[0], 0.6),
+            (ru, users[1], 0.8),
+            (ru, users[2], 0.5),
+        ],
+    )
+
+    environment.update(timestamp=1, minimum_service_link_weight=0.6)
+
+    assert ru.get_battery() == pytest.approx(7.0)
+
+
+def test_update_charges_an_active_ru_at_zero_user_rate_without_qualifying_links() -> (
+    None
+):
+    environment = Environment(
+        make_config(
+            ru_count=1,
+            user_count=1,
+            initial_battery=10.0,
+            zero_user_consumption=1.0,
+            one_user_consumption=2.0,
+            multi_user_consumption_per_user=1.5,
+        ),
+        RecordingController(),
+    )
+    ru = environment.get_rus()[0]
+    user = environment.get_users()[0]
+    replace_connectivity_graph(environment, [(ru, user, 0.5)])
+
+    environment.update(timestamp=1, minimum_service_link_weight=0.6)
+
+    assert ru.get_battery() == pytest.approx(9.0)
 
 
 def test_propagates_ru_validation_for_invalid_uniform_settings() -> None:

@@ -35,7 +35,9 @@ class Environment:
                 id=ru_id,
                 battery=config.initial_battery,
                 status=config.initial_status,
-                active_consumption=config.active_consumption,
+                zero_user_consumption=config.zero_user_consumption,
+                one_user_consumption=config.one_user_consumption,
+                multi_user_consumption_per_user=config.multi_user_consumption_per_user,
                 sleep_consumption=config.sleep_consumption,
             )
             for ru_id in range(1, config.count + 1)
@@ -106,14 +108,26 @@ class Environment:
     def get_connectivity_graph(self) -> nx.Graph:
         return self._connectivity_graph.copy()
 
-    def update(self, timestamp: int) -> None:
-        self._update_batteries()
+    def update(self, timestamp: int, minimum_service_link_weight: float) -> None:
+        self._update_batteries(minimum_service_link_weight)
         self._rus = self._controller.update(self.get_rus(), timestamp).copy()
         self._update_connectivity_graph()
 
-    def _update_batteries(self) -> None:
+    def _serviced_user_count(self, ru: RU, minimum_service_link_weight: float) -> int:
+        return sum(
+            1
+            for user in self._users
+            if (edge := self._connectivity_graph.get_edge_data(ru, user)) is not None
+            and edge["weight"] >= minimum_service_link_weight
+        )
+
+    def _update_batteries(self, minimum_service_link_weight: float) -> None:
         for ru in self._rus:
-            ru.update_battery()
+            ru.update_battery(
+                serviced_user_count=self._serviced_user_count(
+                    ru, minimum_service_link_weight
+                )
+            )
 
     def _update_connectivity_graph(self) -> None:
         self._connectivity_graph = self._create_connectivity_graph()

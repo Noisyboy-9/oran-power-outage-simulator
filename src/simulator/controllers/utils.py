@@ -9,7 +9,7 @@ def _validate_timestamp(timestamp: int) -> None:
 
 
 def _can_activate(ru: RU) -> bool:
-    return ru.get_battery() >= ru.active_consumption
+    return ru.get_battery() >= ru.zero_user_consumption
 
 
 def _is_selected_for_timestamp(ru: RU, timestamp: int) -> bool:
@@ -35,5 +35,5 @@ def _set_selected_status(
             ru_id=ru.id,
             timestamp=timestamp,
             battery=ru.get_battery(),
-            required_battery=ru.active_consumption,
+            required_battery=ru.zero_user_consumption,
         )

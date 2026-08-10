@@ -11,21 +11,25 @@ def make_ru(
     *,
     battery: float = 10.0,
     status: RUStatus = RUStatus.SLEEP,
-    active_consumption: float = 1.0,
+    zero_user_consumption: float = 1.0,
+    one_user_consumption: float = 2.0,
+    multi_user_consumption_per_user: float = 1.5,
 ) -> RU:
     return RU(
         id=id,
         battery=battery,
         status=status,
-        active_consumption=active_consumption,
+        zero_user_consumption=zero_user_consumption,
+        one_user_consumption=one_user_consumption,
+        multi_user_consumption_per_user=multi_user_consumption_per_user,
         sleep_consumption=0.5,
     )
 
 
 def drain_to(ru: RU, target_battery: float) -> None:
     ru.set_status(RUStatus.ACTIVE)
-    delta_time = (ru.get_battery() - target_battery) / ru.active_consumption
-    ru.update_battery(delta_time=delta_time)
+    delta_time = (ru.get_battery() - target_battery) / ru.zero_user_consumption
+    ru.update_battery(delta_time=delta_time, serviced_user_count=0)
 
 
 @pytest.mark.parametrize("threshold", [-0.1, 100.1, "50", True])
@@ -117,7 +121,7 @@ def test_empty_list_does_not_start_transition() -> None:
 
 
 def test_underpowered_ru_sleeps_before_transition() -> None:
-    ru = make_ru(1, battery=1.0, active_consumption=2.0)
+    ru = make_ru(1, battery=0.5, zero_user_consumption=1.0)
 
     ThresholdStaggeredActiveController(0.0).update([ru], timestamp=3)
 
@@ -125,7 +129,7 @@ def test_underpowered_ru_sleeps_before_transition() -> None:
 
 
 def test_selected_underpowered_ru_sleeps_after_transition() -> None:
-    ru = make_ru(2, battery=1.0, active_consumption=2.0)
+    ru = make_ru(2, battery=0.5, zero_user_consumption=1.0)
 
     ThresholdStaggeredActiveController(100.0).update([ru], timestamp=0)
 

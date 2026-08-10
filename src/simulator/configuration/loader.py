@@ -150,7 +150,9 @@ def _parse_environment(value: object, path: str) -> EnvironmentConfig:
             "count",
             "initial_battery",
             "initial_status",
-            "active_consumption",
+            "zero_user_consumption",
+            "one_user_consumption",
+            "multi_user_consumption_per_user",
             "sleep_consumption",
             "coverage_radius",
         },
@@ -166,8 +168,17 @@ def _parse_environment(value: object, path: str) -> EnvironmentConfig:
         initial_status=_parse_ru_status(
             raw_ru["initial_status"], _join_path(ru_path, "initial_status")
         ),
-        active_consumption=_require_positive_number(
-            raw_ru["active_consumption"], _join_path(ru_path, "active_consumption")
+        zero_user_consumption=_require_positive_number(
+            raw_ru["zero_user_consumption"],
+            _join_path(ru_path, "zero_user_consumption"),
+        ),
+        one_user_consumption=_require_positive_number(
+            raw_ru["one_user_consumption"],
+            _join_path(ru_path, "one_user_consumption"),
+        ),
+        multi_user_consumption_per_user=_require_positive_number(
+            raw_ru["multi_user_consumption_per_user"],
+            _join_path(ru_path, "multi_user_consumption_per_user"),
         ),
         sleep_consumption=_require_positive_number(
             raw_ru["sleep_consumption"], _join_path(ru_path, "sleep_consumption")

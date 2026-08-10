@@ -20,7 +20,9 @@ environment:
     count: 5
     initial_battery: 100.0
     initial_status: active
-    active_consumption: 2.0
+    zero_user_consumption: 1.0
+    one_user_consumption: 2.0
+    multi_user_consumption_per_user: 1.5
     sleep_consumption: 0.5
     coverage_radius: 8.0
   user_count: 30
