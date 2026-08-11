@@ -93,13 +93,11 @@ def test_network_lifetime_rejects_invalid_service_fraction(
         )
 
 
-def test_network_lifetime_ignores_a_valid_non_associated_edge() -> None:
+def test_network_lifetime_rejects_an_unassociated_user_with_a_valid_edge() -> None:
     user = User(id=1)
-    associated_ru = make_ru(1, RUStatus.SLEEP)
-    alternative_ru = make_ru(2, RUStatus.ACTIVE)
-    environment = FakeEnvironment([user], [associated_ru, alternative_ru])
-    environment.set_connection_weight(user, alternative_ru, 0.5)
-    environment.set_associated_ru(user, associated_ru)
+    ru = make_ru(1, RUStatus.ACTIVE)
+    environment = FakeEnvironment([user], [ru])
+    environment.set_connection_weight(user, ru, 0.5)
     collector = NetworkLifetimeCollector(
         minimum_emergency_service_fraction=0.5,
     )

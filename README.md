@@ -178,9 +178,10 @@ Battery Depletion Time is infinity when any RU has no observed depletion. Networ
 Lifetime is infinity when the service-level agreement is never violated over the
 observed horizon. RUs whose links are below `minimum_service_link_weight` are
 never contacted for those users. The environment applies that threshold when it
-creates associations. Service then requires an accepted associated RU that is
-active and has positive battery; QoS and Network Lifetime observe that
-association without rechecking its graph edge or connection weight.
+creates associations, together with RU availability and capacity rules. An
+accepted association alone then represents service; QoS and Network Lifetime
+observe that association without rechecking RU status, battery, graph edges, or
+connection weight.
 
 ## Setup
 
