@@ -29,6 +29,7 @@ environment:
     one_user_consumption: 2.0
     multi_user_consumption_per_user: 1.5
     sleep_consumption: 0.5
+    user_capacity: 100
     coverage_radius: 1.0
   user_count: 4
   random_seed: 42
@@ -72,6 +73,7 @@ def test_loads_typed_configuration(tmp_path: Path) -> None:
     assert config.environment.ru.zero_user_consumption == 1.0
     assert config.environment.ru.one_user_consumption == 2.0
     assert config.environment.ru.multi_user_consumption_per_user == 1.5
+    assert config.environment.ru.user_capacity == 100
     assert config.logging.level == logging.INFO
     assert config.controller.kind is ControllerKind.THRESHOLD_STAGGERED_ACTIVE
 
@@ -232,6 +234,7 @@ def test_loads_tracked_default_configuration() -> None:
     config = load_config(config_path)
 
     assert config.environment.map.width == 20
+    assert config.environment.ru.user_capacity == 100
     assert config.controller.kind is ControllerKind.THRESHOLD_STAGGERED_ACTIVE
     assert config.logging.level == logging.INFO
 
@@ -370,6 +373,25 @@ def test_rejects_invalid_enum_and_unsupported_logging_values(
         (
             VALID_YAML.replace("sleep_consumption: 0.5", "sleep_consumption: 0"),
             "environment.ru.sleep_consumption",
+        ),
+        *[
+            (
+                VALID_YAML.replace(
+                    "    user_capacity: 100\n",
+                    replacement,
+                ),
+                "environment.ru.user_capacity",
+            )
+            for replacement in (
+                "",
+                "    user_capacity: false\n",
+                "    user_capacity: 0\n",
+                "    user_capacity: -1\n",
+            )
+        ],
+        (
+            VALID_YAML.replace("user_capacity: 100", "capacity: 100"),
+            "environment.ru.capacity",
         ),
         (
             VALID_YAML.replace("initial_battery: 100.0", "initial_battery: .nan"),

@@ -18,6 +18,7 @@ class RU:
         one_user_consumption: float,
         multi_user_consumption_per_user: float,
         sleep_consumption: float,
+        user_capacity: int,
     ) -> None:
         positive_fields = {
             "id": id,
@@ -32,12 +33,19 @@ class RU:
                 raise DomainValidationError(f"{field} must be positive")
         if not isinstance(status, RUStatus):
             raise DomainValidationError("status must be an RUStatus")
+        if (
+            isinstance(user_capacity, bool)
+            or not isinstance(user_capacity, int)
+            or user_capacity <= 0
+        ):
+            raise DomainValidationError("user_capacity must be a positive integer")
 
         self.id = id
         self.zero_user_consumption = zero_user_consumption
         self.one_user_consumption = one_user_consumption
         self.multi_user_consumption_per_user = multi_user_consumption_per_user
         self.sleep_consumption = sleep_consumption
+        self.user_capacity = user_capacity
         self._battery = battery
         self._initial_capacity = battery
         self._status = status

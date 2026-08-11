@@ -113,6 +113,7 @@ def test_write_output_creates_self_contained_json_and_replaces_existing_file(
         payload["input_configuration"]["environment"]["ru"]["initial_status"]
         == "active"
     )
+    assert payload["input_configuration"]["environment"]["ru"]["user_capacity"] == 100
     assert payload["collector"] == "recording"
     assert payload["observations"] == [{"timestamp": 0}, {"timestamp": 1}]
     assert payload["final_result"] == 2.0

@@ -13,6 +13,7 @@ def make_ru(**overrides: object) -> RU:
         "one_user_consumption": 2.0,
         "multi_user_consumption_per_user": 1.5,
         "sleep_consumption": 0.5,
+        "user_capacity": 100,
     }
     values.update(overrides)
     return RU(**values)
@@ -22,11 +23,12 @@ def test_status_has_sleep_and_active_states() -> None:
     assert {status.value for status in RUStatus} == {"sleep", "active"}
 
 
-def test_exposes_battery_and_fixed_initial_capacity() -> None:
-    ru = make_ru(battery=12.0)
+def test_exposes_battery_initial_capacity_and_user_capacity() -> None:
+    ru = make_ru(battery=12.0, user_capacity=3)
 
     assert ru.get_battery() == 12.0
     assert ru.get_initial_capacity() == 12.0
+    assert ru.user_capacity == 3
     assert not hasattr(ru, "battery")
 
 
@@ -118,3 +120,9 @@ def test_rejects_non_positive_constructor_values(field: str, value: float) -> No
 def test_rejects_invalid_constructor_status() -> None:
     with pytest.raises(DomainValidationError, match="status"):
         make_ru(status="active")
+
+
+@pytest.mark.parametrize("user_capacity", [0, -1, 1.5, True, "100"])
+def test_rejects_invalid_user_capacity(user_capacity: object) -> None:
+    with pytest.raises(DomainValidationError, match="user_capacity"):
+        make_ru(user_capacity=user_capacity)

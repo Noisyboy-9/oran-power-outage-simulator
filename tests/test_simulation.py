@@ -16,7 +16,9 @@ from simulator.metrics import MetricCollector
 from simulator.simulation import Simulation
 
 
-def make_application_config(steps: int = 1) -> ApplicationConfig:
+def make_application_config(
+    steps: int = 1, minimum_service_link_weight: float = 0.0
+) -> ApplicationConfig:
     return ApplicationConfig(
         environment=EnvironmentConfig(
             map=MapConfig(width=2, height=1),
@@ -28,6 +30,7 @@ def make_application_config(steps: int = 1) -> ApplicationConfig:
                 one_user_consumption=2.0,
                 multi_user_consumption_per_user=1.5,
                 sleep_consumption=1.0,
+                user_capacity=100,
                 coverage_radius=2.0,
             ),
             user_count=1,
@@ -50,7 +53,7 @@ def make_application_config(steps: int = 1) -> ApplicationConfig:
             metrics=MetricsConfig(
                 collectors=(),
                 minimum_emergency_service_fraction=0.8,
-                minimum_service_link_weight=0.0,
+                minimum_service_link_weight=minimum_service_link_weight,
             ),
         ),
     )
@@ -95,8 +98,11 @@ class RecordingCollector(MetricCollector):
 
 
 class RecordingEnvironment:
-    def __init__(self, lifecycle: list[str]) -> None:
+    def __init__(
+        self, lifecycle: list[str], minimum_service_link_weight: float
+    ) -> None:
         self._lifecycle = lifecycle
+        self.minimum_service_link_weight = minimum_service_link_weight
         self.updates: list[tuple[int, float]] = []
 
     def update(self, timestamp: int, minimum_service_link_weight: float) -> None:
@@ -145,13 +151,28 @@ def test_simulate_delegates_environment_update_before_collecting_metrics(
         "build_controller",
         lambda _config: controller,
     )
-    environment = RecordingEnvironment(lifecycle)
+    environment: RecordingEnvironment | None = None
+
+    def create_environment(
+        _config: EnvironmentConfig,
+        _controller: object,
+        minimum_service_link_weight: float,
+    ) -> RecordingEnvironment:
+        nonlocal environment
+        environment = RecordingEnvironment(lifecycle, minimum_service_link_weight)
+        return environment
+
     monkeypatch.setattr(
         simulation_module,
         "Environment",
-        lambda _config, _controller: environment,
+        create_environment,
     )
-    simulation = Simulation(make_application_config(), [collector])
+    simulation = Simulation(
+        make_application_config(minimum_service_link_weight=0.73), [collector]
+    )
+
+    assert environment is not None
+    assert environment.minimum_service_link_weight == 0.73
 
     simulation.simulate()
 
@@ -161,7 +182,7 @@ def test_simulate_delegates_environment_update_before_collecting_metrics(
         "collector.collect:1",
     ]
     assert component_environments == [environment, environment]
-    assert environment.updates == [(1, 0.0)]
+    assert environment.updates == [(1, 0.73)]
 
 
 def test_simulate_collects_initial_state_once_and_each_updated_state() -> None:

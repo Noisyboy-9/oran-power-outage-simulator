@@ -26,6 +26,7 @@ def make_application_config() -> ApplicationConfig:
                 one_user_consumption=2.0,
                 multi_user_consumption_per_user=1.5,
                 sleep_consumption=0.5,
+                user_capacity=100,
                 coverage_radius=1.0,
             ),
             user_count=1,
@@ -59,6 +60,7 @@ class FakeEnvironment:
         self._users = users
         self._rus = rus
         self._connection_weights: dict[tuple[User, RU], float] = {}
+        self._associations: dict[User, RU | None] = {user: None for user in users}
 
     def get_users(self) -> list[User]:
         return self._users.copy()
@@ -81,6 +83,12 @@ class FakeEnvironment:
     def set_connection_weight(self, user: User, ru: RU, weight: float) -> None:
         self._connection_weights[(user, ru)] = weight
 
+    def get_associated_ru(self, user: User) -> RU | None:
+        return self._associations.get(user)
+
+    def set_associated_ru(self, user: User, ru: RU | None) -> None:
+        self._associations[user] = ru
+
 
 def make_ru(id: int, status: RUStatus) -> RU:
     return RU(
@@ -91,4 +99,5 @@ def make_ru(id: int, status: RUStatus) -> RU:
         one_user_consumption=2.0,
         multi_user_consumption_per_user=1.5,
         sleep_consumption=0.5,
+        user_capacity=100,
     )
