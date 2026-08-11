@@ -171,6 +171,9 @@ Tests will cover:
 - one association per user, capacity limits, deterministic user/RU tie breaks,
   and no association when every candidate is below threshold, unavailable, or
   full;
+- lower user-ID priority during capacity contention even when the environment's
+  internal user storage order is reversed;
+- propagation of the configured uniform `user_capacity` to every created RU;
 - exclusion of sleeping and depleted RUs during construction and after an
   update;
 - initial `t=0` association creation using the configured threshold;
