@@ -19,6 +19,12 @@ def _parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
         metavar="PATH",
         help="path to the simulation YAML configuration file",
     )
+    parser.add_argument(
+        "--metrics-output-path",
+        required=True,
+        metavar="PATH",
+        help="directory where metric JSON files are written",
+    )
     return parser.parse_args(argv)
 
 
@@ -34,8 +40,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     metric_collectors = build_metric_collectors(config.simulation.metrics)
     simulation = Simulation(config, metric_collectors=metric_collectors)
     simulation.simulate()
+    output_directory = Path(arguments.metrics_output_path)
     for collector in metric_collectors:
-        collector.finish_calculation()
+        collector.write_output(output_directory, config)
     return 0
 
 
