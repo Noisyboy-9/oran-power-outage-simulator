@@ -43,9 +43,10 @@ decision. It is not a graph because every user has at most one accepted RU; a
 mapping is smaller, directly expresses that invariant, and avoids duplicating
 edge weights and topology.
 
-The association map never creates a connection-quality value. Whenever a
-consumer needs quality, it reads the edge for the selected RU from the
-connectivity graph.
+The association map never creates a connection-quality value. The environment
+uses the connectivity graph and its edge weights only while admitting
+associations. Once accepted, an association is the complete service decision
+for metric collectors during that timestep.
 
 ## Association Algorithm
 
@@ -138,27 +139,22 @@ Currently, the shared service helper searches all RUs for each user and counts
 the user as served when *any* RU has a usable qualifying graph edge. It counts
 the user only once, but it does not record which RU supplied that service.
 
-The association-aware helper instead performs one association-map lookup per
-user. An unassociated user is not served. For an associated user, it checks
-only the selected RU: the connectivity graph must still contain that edge, the
-RU must be active with positive battery, and the edge weight must meet
-`minimum_service_link_weight`. It never searches alternative RUs. This makes
-Average Emergency QoS and Network Lifetime observe the same exclusive model as
+The association-aware helper performs one association-map lookup per user. An
+unassociated user is not served. For an associated user, it checks only whether
+the selected RU is active with positive battery. It never searches alternative
+RUs or rechecks graph-edge presence or connection quality: both were already
+enforced when the environment created the association. This makes Average
+Emergency QoS and Network Lifetime observe the same exclusive model as
 capacity and battery load.
 
-The helper must still check graph-edge presence separately. A zero service-link
-threshold accepts every existing association edge but must not turn the
-`get_connection_weight()` no-edge sentinel (`0.0`) into service. Looking up an
-association is a read-only operation: collectors never create, repair, or
-recompute associations.
-
-`AverageEmergencyQoSCollector` and `NetworkLifetimeCollector` keep their
-current public constructors, timestamp observations, result calculations, and
-factory wiring. Their observed served-user fractions change solely through the
-shared helper. `AverageRUBatteryDepletionTimeCollector` remains association
-agnostic: it reads only RU batteries, so it needs no production-code change.
-Metric collector collection must continue not to mutate either RU state,
-connectivity, or the association mapping.
+The shared helper takes only the environment. Consequently,
+`AverageEmergencyQoSCollector` and `NetworkLifetimeCollector` no longer accept
+or store `minimum_service_link_weight`; the metric factory creates them without
+that argument. The simulation configuration retains the threshold because the
+environment still uses it for association admission. `AverageRUBatteryDepletionTimeCollector`
+remains association agnostic: it reads only RU batteries, so it needs no
+production-code change. Metric collector collection must continue not to mutate
+either RU state, connectivity, or the association mapping.
 
 ## Testing
 
@@ -180,8 +176,9 @@ Tests will cover:
 - initial `t=0` association creation using the configured threshold;
 - calculation of RU load from associated users rather than all qualifying
   graph edges; and
-- service metrics rejecting an otherwise valid non-associated RU connection,
-  an unassociated user, and an association whose link is below the threshold;
+- service metrics rejecting an otherwise valid non-associated RU connection and
+  an unassociated user, while counting an associated active, charged RU without
+  reading its graph edge or connection weight;
 - Average Emergency QoS and Network Lifetime inheriting the association-aware
   served fraction without changes to their result formulas; and
 - metric collection leaving the association mapping unchanged, while the
