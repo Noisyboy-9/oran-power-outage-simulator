@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 
-import pytest
 from conftest import FakeEnvironment, make_application_config, make_ru
 
 from simulator.domain import RUStatus, User
