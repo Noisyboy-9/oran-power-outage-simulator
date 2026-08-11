@@ -177,11 +177,10 @@ Emergency QoS is the mean of its observed served-user fractions. Average RU
 Battery Depletion Time is infinity when any RU has no observed depletion. Network
 Lifetime is infinity when the service-level agreement is never violated over the
 observed horizon. RUs whose links are below `minimum_service_link_weight` are
-never contacted for those users. Service requires an associated active RU with
-positive battery and a valid current graph link whose weight is at least
-`minimum_service_link_weight`; QoS and Network Lifetime use that same associated
-RU and link. A threshold of `0.0` disables only the additional quality filter;
-an existing edge is still required.
+never contacted for those users. The environment applies that threshold when it
+creates associations. Service then requires an accepted associated RU that is
+active and has positive battery; QoS and Network Lifetime observe that
+association without rechecking its graph edge or connection weight.
 
 ## Setup
 

@@ -19,6 +19,11 @@
 
 ### Task 1: Make the Shared Service Helper Trust Associations
 
+> **Atomic execution note:** This task removes a validator that Task 2's
+> collectors currently import. Complete Steps 1–3, then immediately complete
+> Task 2 before running the metric package suite or committing; Task 2 owns the
+> single atomic implementation commit.
+
 **Files:**
 - Modify: `src/simulator/metrics/service.py`
 - Modify: `tests/metrics/test_service.py`
@@ -74,7 +79,7 @@
 
   Delete `_validate_minimum_service_link_weight()` from this module. Do not change the environment's threshold validation or association rebuild.
 
-- [ ] **Step 4: Verify the service helper suite is green**
+- [ ] **Step 4: Verify the service helper suite is green after Task 2 removes its imports**
 
   Run:
 
@@ -84,12 +89,11 @@
 
   Expected: PASS. An active associated RU is served even without a graph edge; association, status, and battery still control service.
 
-- [ ] **Step 5: Commit the helper change**
+- [ ] **Step 5: Continue directly to Task 2 without an intermediate commit**
 
-  ```bash
-  git add src/simulator/metrics/service.py tests/metrics/test_service.py
-  git commit -m "refactor: trust RU associations for service"
-  ```
+  The `simulator.metrics` package imports the service collectors, so the
+  removed validator is unavailable only until Task 2 removes those collector
+  imports. The combined verification and commit happen in Task 2.
 
 ### Task 2: Remove Link-Threshold Ownership From Service Collectors
 
