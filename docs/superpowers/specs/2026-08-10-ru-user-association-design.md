@@ -140,12 +140,12 @@ the user as served when *any* RU has a usable qualifying graph edge. It counts
 the user only once, but it does not record which RU supplied that service.
 
 The association-aware helper performs one association-map lookup per user. An
-unassociated user is not served. For an associated user, it checks only whether
-the selected RU is active with positive battery. It never searches alternative
-RUs or rechecks graph-edge presence or connection quality: both were already
-enforced when the environment created the association. This makes Average
-Emergency QoS and Network Lifetime observe the same exclusive model as
-capacity and battery load.
+unassociated user is not served; an associated user is served. It never
+searches alternative RUs or rechecks RU status, battery, graph-edge presence,
+or connection quality: all of those admission conditions were already enforced
+when the environment created the association immediately before metric
+collection. This makes Average Emergency QoS and Network Lifetime observe the
+same exclusive model as capacity and battery load.
 
 The shared helper takes only the environment. Consequently,
 `AverageEmergencyQoSCollector` and `NetworkLifetimeCollector` no longer accept
@@ -176,9 +176,9 @@ Tests will cover:
 - initial `t=0` association creation using the configured threshold;
 - calculation of RU load from associated users rather than all qualifying
   graph edges; and
-- service metrics rejecting an otherwise valid non-associated RU connection and
-  an unassociated user, while counting an associated active, charged RU without
-  reading its graph edge or connection weight;
+- service metrics rejecting an unassociated user while counting every accepted
+  association without reading RU status, battery, graph edges, or connection
+  weights;
 - Average Emergency QoS and Network Lifetime inheriting the association-aware
   served fraction without changes to their result formulas; and
 - metric collection leaving the association mapping unchanged, while the
