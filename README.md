@@ -136,10 +136,11 @@ logger.info("simulation_started", timestamp=0)
 
 ## Running a Simulation
 
-Run the application with an explicit YAML configuration path:
+Run the application with the required YAML configuration path and required
+metric output directory:
 
 ```bash
-uv run python main.py --configs configs/default.yaml
+uv run python main.py --configs configs/default.yaml --metrics-output-path outputs/run-001
 ```
 
 The required configuration's `simulation.steps` value determines how many ordered simulation steps run. `main.py` loads configuration, configures logging, constructs configured metric collectors, and starts `Simulation`. `Simulation` owns the ordered step loop.
@@ -168,6 +169,31 @@ observed horizon. Service requires an existing graph edge, an active RU, positiv
 battery, and edge weight at least `minimum_service_link_weight`. A threshold of
 `0.0` disables only the additional quality filter; an existing edge is still
 required.
+
+### Metric output files
+
+Each selected collector writes one stable-name JSON file in
+`--metrics-output-path`: `average_emergency_qos.json`,
+`average_ru_battery_depletion_time.json`, or `network_lifetime.json`. Only
+collectors selected in `simulation.metrics.collectors` write files. The first
+JSON member, `input_configuration`, contains the complete loaded configuration.
+The remaining result body has this compact form:
+
+```json
+{
+  "collector": "average_emergency_qos",
+  "observations": [{"timestamp": 0, "served_user_fraction": 1.0}],
+  "final_result": 1.0
+}
+```
+
+The Average Emergency QoS and Network Lifetime collectors record observations
+with `timestamp` and `served_user_fraction`. Battery-depletion observations
+contain `timestamp` and a `ru_batteries` map whose RU-ID keys are strings.
+`final_result` is a JSON number when finite and the JSON literal `null` when
+the calculated value is infinite; the string `"null"` is never written.
+Repeated runs using the same output directory overwrite files with the same
+name.
 
 ## Setup
 
