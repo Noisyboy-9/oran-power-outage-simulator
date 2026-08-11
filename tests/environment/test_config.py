@@ -20,6 +20,7 @@ def make_ru_config(**overrides: object) -> RUConfig:
         "one_user_consumption": 2.0,
         "multi_user_consumption_per_user": 1.5,
         "sleep_consumption": 0.5,
+        "user_capacity": 100,
         "coverage_radius": 4.0,
     }
     values.update(overrides)
@@ -83,6 +84,12 @@ def test_rejects_invalid_map_dimensions(field: str, value: object) -> None:
 def test_rejects_invalid_ru_count(count: object) -> None:
     with pytest.raises(EnvironmentValidationError, match="count"):
         make_ru_config(count=count)
+
+
+@pytest.mark.parametrize("user_capacity", [0, -1, 1.5, True, "100"])
+def test_rejects_invalid_ru_user_capacity(user_capacity: object) -> None:
+    with pytest.raises(EnvironmentValidationError, match="user_capacity"):
+        make_ru_config(user_capacity=user_capacity)
 
 
 @pytest.mark.parametrize("coverage_radius", [0.0, -1.0, float("nan"), True, "wide"])

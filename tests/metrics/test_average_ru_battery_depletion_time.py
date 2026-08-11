@@ -21,6 +21,7 @@ def make_environment() -> FakeEnvironment:
                 one_user_consumption=2.0,
                 multi_user_consumption_per_user=1.5,
                 sleep_consumption=0.5,
+                user_capacity=100,
             ),
             RU(
                 id=2,
@@ -30,6 +31,7 @@ def make_environment() -> FakeEnvironment:
                 one_user_consumption=2.0,
                 multi_user_consumption_per_user=1.5,
                 sleep_consumption=0.5,
+                user_capacity=100,
             ),
         ],
     )

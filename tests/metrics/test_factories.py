@@ -7,7 +7,7 @@ from simulator.metrics import (
 )
 
 
-def test_builds_collectors_in_configuration_order_with_service_thresholds() -> None:
+def test_builds_collectors_in_configuration_order() -> None:
     collectors = build_metric_collectors(
         MetricsConfig(
             collectors=(
@@ -26,11 +26,11 @@ def test_builds_collectors_in_configuration_order_with_service_thresholds() -> N
         "network_lifetime",
     ]
     assert isinstance(collectors[0], AverageEmergencyQoSCollector)
-    assert collectors[0].minimum_service_link_weight == 0.6
+    assert not hasattr(collectors[0], "minimum_service_link_weight")
     assert isinstance(collectors[1], AverageRUBatteryDepletionTimeCollector)
     assert isinstance(collectors[2], NetworkLifetimeCollector)
     assert collectors[2].minimum_emergency_service_fraction == 0.8
-    assert collectors[2].minimum_service_link_weight == 0.6
+    assert not hasattr(collectors[2], "minimum_service_link_weight")
 
 
 def test_builds_average_ru_battery_depletion_time_collector() -> None:

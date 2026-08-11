@@ -154,6 +154,7 @@ def _parse_environment(value: object, path: str) -> EnvironmentConfig:
             "one_user_consumption",
             "multi_user_consumption_per_user",
             "sleep_consumption",
+            "user_capacity",
             "coverage_radius",
         },
         ru_path,
@@ -182,6 +183,9 @@ def _parse_environment(value: object, path: str) -> EnvironmentConfig:
         ),
         sleep_consumption=_require_positive_number(
             raw_ru["sleep_consumption"], _join_path(ru_path, "sleep_consumption")
+        ),
+        user_capacity=_require_positive_integer(
+            raw_ru["user_capacity"], _join_path(ru_path, "user_capacity")
         ),
         coverage_radius=_require_positive_number(
             raw_ru["coverage_radius"], _join_path(ru_path, "coverage_radius")

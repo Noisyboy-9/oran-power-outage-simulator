@@ -24,6 +24,7 @@ The environment is configured with immutable nested configuration objects and
 is fully built by its constructor:
 
 ```python
+from simulator.controllers import AlwaysActiveController
 from simulator.domain import RUStatus
 from simulator.environment import Environment, EnvironmentConfig, MapConfig, RUConfig
 
@@ -31,6 +32,7 @@ config = EnvironmentConfig(
     map=MapConfig(width=20, height=20),
     ru=RUConfig(
         count=5,
+        user_capacity=100,
         initial_battery=100.0,
         initial_status=RUStatus.ACTIVE,
         zero_user_consumption=1.0,
@@ -42,13 +44,20 @@ config = EnvironmentConfig(
     user_count=30,
     random_seed=42,
 )
-environment = Environment(config)
+controller = AlwaysActiveController()
+environment = Environment(
+    config,
+    controller,
+    minimum_service_link_weight=0.6,
+)
 ```
 
 Construction creates a row-major map, uniform RUs, users, collision-free
 placements, and an undirected NetworkX graph. Every RU and user is a graph
 node. An RU-user edge exists only when their Cartesian distance is smaller than
-the configured RU coverage radius.
+the configured RU coverage radius. This connectivity graph contains every
+in-range weighted possibility; the environment-owned association map contains
+one accepted RU or `None` per user.
 
 Connection weights lie in `(0, 1]` and are randomized while scaling downward
 with distance. `get_connection_weight(user, ru)` returns `0.0` when no edge
@@ -81,11 +90,10 @@ controllers only select statuses.
 It creates the environment and configured RU controller, starts at timestamp
 `0`, and accepts optional metric collector instances. Calling `simulate()` runs
 the positive `simulation.steps` count from configuration. Each private step
-increments the timestamp; depletes batteries using prior RU statuses and every
-qualifying RU-user link at the configured `minimum_service_link_weight`; applies
-the RU controller; rebuilds connectivity; and then calls each collector with the
-completed environment. A qualifying user may be counted by multiple RUs because
-the simulator has no association policy.
+increments the timestamp, then charges prior associations, applies the RU
+controller, rebuilds possible links, rebuilds associations, and collects
+metrics. Associations admit one active, charged RU per user, subject to each
+RU's `user_capacity` and the configured `minimum_service_link_weight`.
 
 ```python
 from pathlib import Path
@@ -121,8 +129,12 @@ from simulator.logging import configure_logging
 
 config = load_config(Path("configs/default.yaml"))
 configure_logging(config.logging)
-environment = Environment(config.environment)
 controller = build_controller(config.controller)
+environment = Environment(
+    config.environment,
+    controller,
+    config.simulation.metrics.minimum_service_link_weight,
+)
 ```
 
 Modules obtain their own named logger and attach domain data as fields:
@@ -164,10 +176,12 @@ Collectors observe the initial `t=0` state and each post-update state. Average
 Emergency QoS is the mean of its observed served-user fractions. Average RU
 Battery Depletion Time is infinity when any RU has no observed depletion. Network
 Lifetime is infinity when the service-level agreement is never violated over the
-observed horizon. Service requires an existing graph edge, an active RU, positive
-battery, and edge weight at least `minimum_service_link_weight`. A threshold of
-`0.0` disables only the additional quality filter; an existing edge is still
-required.
+observed horizon. RUs whose links are below `minimum_service_link_weight` are
+never contacted for those users. The environment applies that threshold when it
+creates associations, together with RU availability and capacity rules. An
+accepted association alone then represents service; QoS and Network Lifetime
+observe that association without rechecking RU status, battery, graph edges, or
+connection weight.
 
 ## Setup
 
