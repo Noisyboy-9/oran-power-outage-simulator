@@ -14,6 +14,17 @@ class AverageRUBatteryDepletionTimeCollector(MetricCollector):
             ru.id: ru.get_battery() for ru in environment.get_rus()
         }
 
+    def _observation_records(self) -> list[dict[str, object]]:
+        return [
+            {
+                "timestamp": timestamp,
+                "ru_batteries": {
+                    str(ru_id): battery for ru_id, battery in snapshot.items()
+                },
+            }
+            for timestamp, snapshot in sorted(self._battery_snapshots.items())
+        ]
+
     def finish_calculation(self) -> float:
         self._require_observation()
         initial_snapshot = self._battery_snapshots[0]

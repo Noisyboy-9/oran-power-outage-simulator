@@ -1,5 +1,8 @@
+import json
+from pathlib import Path
+
 import pytest
-from conftest import FakeEnvironment, make_ru
+from conftest import FakeEnvironment, make_application_config, make_ru
 
 from simulator.domain import RUStatus, User
 from simulator.metrics.average_emergency_qos import AverageEmergencyQoSCollector
@@ -23,6 +26,22 @@ def test_average_emergency_qos_records_zero_complete_and_partial_service() -> No
 
     assert collector.name == "average_emergency_qos"
     assert collector.finish_calculation() == 0.5
+
+
+def test_average_emergency_qos_writes_served_fraction_observations(
+    tmp_path: Path,
+) -> None:
+    collector = AverageEmergencyQoSCollector(minimum_service_link_weight=0.3)
+    collector.collect(make_environment(2), 0)
+    collector.collect(make_environment(1), 1)
+
+    output_path = collector.write_output(tmp_path, make_application_config())
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert payload["observations"] == [
+        {"timestamp": 0, "served_user_fraction": 1.0},
+        {"timestamp": 1, "served_user_fraction": 0.5},
+    ]
 
 
 def test_average_emergency_qos_counts_duplicate_active_coverage_once() -> None:

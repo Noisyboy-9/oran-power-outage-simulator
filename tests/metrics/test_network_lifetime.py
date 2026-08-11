@@ -1,7 +1,9 @@
+import json
 import math
+from pathlib import Path
 
 import pytest
-from conftest import FakeEnvironment, make_ru
+from conftest import FakeEnvironment, make_application_config, make_ru
 
 from simulator.domain import RUStatus, User
 from simulator.metrics.network_lifetime import NetworkLifetimeCollector
@@ -31,6 +33,25 @@ def test_network_lifetime_stops_at_the_observation_before_first_violation() -> N
 
     assert collector.name == "network_lifetime"
     assert collector.finish_calculation() == 1.0
+
+
+def test_network_lifetime_writes_served_fraction_observations(
+    tmp_path: Path,
+) -> None:
+    collector = NetworkLifetimeCollector(
+        minimum_emergency_service_fraction=0.5,
+        minimum_service_link_weight=0.3,
+    )
+    collector.collect(make_environment(2), 0)
+    collector.collect(make_environment(1), 1)
+
+    output_path = collector.write_output(tmp_path, make_application_config())
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert payload["observations"] == [
+        {"timestamp": 0, "served_user_fraction": 1.0},
+        {"timestamp": 1, "served_user_fraction": 0.5},
+    ]
 
 
 def test_network_lifetime_does_not_extend_after_a_recovery() -> None:
@@ -84,6 +105,19 @@ def test_network_lifetime_is_infinite_when_sla_is_never_violated() -> None:
     collector.collect(make_environment(2), 1)
 
     assert math.isinf(collector.finish_calculation())
+
+
+def test_network_lifetime_writes_null_for_infinity(tmp_path: Path) -> None:
+    collector = NetworkLifetimeCollector(
+        minimum_emergency_service_fraction=0.5,
+        minimum_service_link_weight=0.3,
+    )
+    collector.collect(make_environment(1), 0)
+
+    output_path = collector.write_output(tmp_path, make_application_config())
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert payload["final_result"] is None
 
 
 @pytest.mark.parametrize("minimum_emergency_service_fraction", [0, 1.1, True, "0.5"])

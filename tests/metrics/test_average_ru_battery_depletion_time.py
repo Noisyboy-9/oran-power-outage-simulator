@@ -1,7 +1,9 @@
+import json
 import math
+from pathlib import Path
 
 import pytest
-from conftest import FakeEnvironment
+from conftest import FakeEnvironment, make_application_config
 
 from simulator.domain import RU, RUStatus
 from simulator.metrics.average_ru_battery_depletion_time import (
@@ -62,6 +64,37 @@ def test_average_ru_battery_depletion_time_uses_an_exact_zero_at_t0() -> None:
     collector.collect(environment, 0)
 
     assert collector.finish_calculation() == 0.0
+
+
+def test_average_ru_battery_depletion_time_writes_battery_observations(
+    tmp_path: Path,
+) -> None:
+    environment = make_environment()
+    collector = AverageRUBatteryDepletionTimeCollector()
+    collector.collect(environment, 0)
+    set_batteries(environment, {1: 0.0, 2: 1.0})
+    collector.collect(environment, 1)
+
+    output_path = collector.write_output(tmp_path, make_application_config())
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert payload["observations"] == [
+        {"timestamp": 0, "ru_batteries": {"1": 2.0, "2": 3.0}},
+        {"timestamp": 1, "ru_batteries": {"1": 0.0, "2": 1.0}},
+    ]
+
+
+def test_average_ru_battery_depletion_time_writes_null_for_infinity(
+    tmp_path: Path,
+) -> None:
+    environment = make_environment()
+    collector = AverageRUBatteryDepletionTimeCollector()
+    collector.collect(environment, 0)
+
+    output_path = collector.write_output(tmp_path, make_application_config())
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert payload["final_result"] is None
 
 
 def test_average_ru_battery_depletion_time_collection_does_not_mutate_environment() -> (
