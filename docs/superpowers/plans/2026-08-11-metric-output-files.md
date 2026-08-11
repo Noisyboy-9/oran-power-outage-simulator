@@ -19,6 +19,12 @@
 - Do not write a result file before a collector has at least one observation, do not write during time steps, and do not modify the environment.
 - Keep current metric definitions, public collector names, timestamp validation, and `finish_calculation() -> float` behavior unchanged.
 - Add no dependencies; run commands through `uv`.
+- Preserve environment-owned association semantics: a served-user fraction is
+  based only on accepted user associations, and JSON output must not recreate
+  graph, battery, status, capacity, or link-weight admission checks.
+- Preserve the required `RUConfig.user_capacity` field in the full serialized
+  configuration and reject non-finite numeric YAML configuration values before
+  they reach standard JSON serialization.
 
 ---
 
@@ -576,4 +582,81 @@
   ```bash
   git add README.md
   git commit -m "docs: describe metric output files"
+  ```
+
+### Task 5: Integrate Association Semantics and Re-verify the Output Feature
+
+**Files:**
+- Modify as required by the merge: `src/simulator/configuration/loader.py`,
+  `src/simulator/metrics/average_emergency_qos.py`,
+  `src/simulator/metrics/network_lifetime.py`,
+  `src/simulator/metrics/factories.py`, `README.md`, and their corresponding
+  tests.
+- Modify: `tests/metrics/conftest.py` and `tests/metrics/test_base.py`.
+
+**Interfaces:**
+- Consumes: `Environment.get_associated_ru(user) -> RU | None`, required
+  `RUConfig.user_capacity: int`, and the completed
+  `MetricCollector.write_output(output_directory: Path, config: ApplicationConfig) -> Path`.
+- Produces: metric-output persistence compatible with the association-aware
+  metric collectors and complete current configuration serialization.
+
+- [ ] **Step 1: Merge current `main` and resolve semantic conflicts**
+
+  Merge `main` into the metric-output branch. Preserve the association-aware
+  service helper and the no-threshold constructors for
+  `AverageEmergencyQoSCollector` and `NetworkLifetimeCollector`. Keep their
+  `_observation_records()` implementations, which only project the stored
+  served fractions into timestamp-ordered records. Preserve
+  `AverageRUBatteryDepletionTimeCollector` unchanged except for any required
+  merge context.
+
+  In the configuration loader, retain both the required `user_capacity`
+  parsing/validation and the shared `math.isfinite()` check that rejects
+  non-finite numeric YAML values. Do not change the JSON writer's
+  `final_result: null` encoding.
+
+- [ ] **Step 2: Update merge-affected output tests**
+
+  Update the complete `ApplicationConfig` fixture in `tests/metrics/conftest.py`
+  to supply a positive `user_capacity`. In the shared output test, assert that
+  `payload["input_configuration"]["environment"]["ru"]["user_capacity"]`
+  equals that configured value. Preserve association-backed fake-environment
+  setup and collector constructors from `main`; output tests for QoS and
+  Network Lifetime must assert their existing served-fraction observations,
+  not edge-based service behavior.
+
+  Retain a loader regression test that replaces `initial_battery: 100.0` with
+  `initial_battery: .inf` and expects a `ConfigurationError` at
+  `environment.ru.initial_battery`.
+
+- [ ] **Step 3: Reconcile README documentation**
+
+  Keep `main`'s association, capacity, and timestep documentation. Retain the
+  required output-path command and metric-output-files subsection. State that
+  output observations report association-based service decisions and do not
+  duplicate association admission logic.
+
+- [ ] **Step 4: Review and verify the integrated branch**
+
+  Run:
+
+  ```bash
+  uv run pytest
+  uv run ruff check .
+  uv run ruff format --check .
+  git diff --check main..HEAD
+  ```
+
+  Review every merge conflict resolution against the association design and
+  this output-file design. Confirm that no output file contains non-standard
+  JSON values, a finite configuration value is present for every serialized
+  numeric option, output is post-simulation only, and JSON creation does not
+  mutate the association map.
+
+- [ ] **Step 5: Commit the integration correction**
+
+  ```bash
+  git add README.md src tests docs/superpowers/specs/2026-08-10-metric-output-files-design.md docs/superpowers/plans/2026-08-11-metric-output-files.md
+  git commit -m "fix: integrate metric outputs with associations"
   ```
