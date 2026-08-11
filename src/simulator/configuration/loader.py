@@ -1,4 +1,5 @@
 import logging
+import math
 from collections.abc import Hashable, Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
@@ -462,6 +463,8 @@ def _require_positive_number(value: object, path: str) -> int | float:
 def _require_number(value: object, path: str) -> int | float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ConfigurationError(f"{path}: must be a number")
+    if not math.isfinite(value):
+        raise ConfigurationError(f"{path}: must be a finite number")
     return value
 
 

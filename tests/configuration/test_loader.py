@@ -375,6 +375,10 @@ def test_rejects_invalid_enum_and_unsupported_logging_values(
             VALID_YAML.replace("initial_battery: 100.0", "initial_battery: .nan"),
             "environment.ru.initial_battery",
         ),
+        (
+            VALID_YAML.replace("initial_battery: 100.0", "initial_battery: .inf"),
+            "environment.ru.initial_battery",
+        ),
         (VALID_YAML.replace("user_count: 4", "user_count: 5"), "environment"),
     ],
 )
