@@ -121,6 +121,7 @@ def test_creates_uniform_rus_and_sequential_entity_ids() -> None:
             one_user_consumption=2.0,
             multi_user_consumption_per_user=1.5,
             sleep_consumption=0.25,
+            user_capacity=2,
         ),
         AlwaysActiveController(),
         0.0,
@@ -138,6 +139,7 @@ def test_creates_uniform_rus_and_sequential_entity_ids() -> None:
         assert ru.one_user_consumption == 2.0
         assert ru.multi_user_consumption_per_user == 1.5
         assert ru.sleep_consumption == 0.25
+        assert ru.user_capacity == 2
 
 
 def test_places_every_entity_in_one_distinct_cell() -> None:
@@ -457,6 +459,26 @@ def test_never_associates_more_users_than_an_ru_capacity() -> None:
     rebuild_associations(environment, [(ru, user, 1.0) for user in users], 0.0)
 
     assert sum(environment.get_associated_ru(user) is ru for user in users) == 2
+
+
+def test_lower_user_id_wins_capacity_contention_despite_reversed_storage() -> None:
+    environment = Environment(
+        make_config(ru_count=1, user_count=2, user_capacity=1),
+        RecordingController(),
+        0.0,
+    )
+    ru = environment.get_rus()[0]
+    lower_id_user, higher_id_user = environment.get_users()
+    environment._users.reverse()
+
+    rebuild_associations(
+        environment,
+        [(ru, lower_id_user, 0.9), (ru, higher_id_user, 0.9)],
+        0.0,
+    )
+
+    assert environment.get_associated_ru(lower_id_user) is ru
+    assert environment.get_associated_ru(higher_id_user) is None
 
 
 @pytest.mark.parametrize(
