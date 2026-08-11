@@ -90,6 +90,9 @@ class RecordingCollector(MetricCollector):
         self._require_observation()
         return float(len(self.observations))
 
+    def _observation_records(self) -> list[dict[str, object]]:
+        return []
+
 
 class RecordingEnvironment:
     def __init__(self, lifecycle: list[str]) -> None:
@@ -122,6 +125,9 @@ class LifecycleCollector(MetricCollector):
     def finish_calculation(self) -> float:
         self._require_observation()
         return float(len(self._component_environments))
+
+    def _observation_records(self) -> list[dict[str, object]]:
+        return []
 
 
 def test_simulate_delegates_environment_update_before_collecting_metrics(

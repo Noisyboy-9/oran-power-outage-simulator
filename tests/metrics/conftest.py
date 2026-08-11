@@ -1,6 +1,57 @@
 import networkx as nx
 
+from simulator.configuration import (
+    ApplicationConfig,
+    ControllerConfig,
+    ControllerKind,
+    LoggingConfig,
+    MetricKind,
+    MetricsConfig,
+    SimulationConfig,
+    TimestampConfig,
+)
 from simulator.domain import RU, RUStatus, User
+from simulator.environment import EnvironmentConfig, MapConfig, RUConfig
+
+
+def make_application_config() -> ApplicationConfig:
+    return ApplicationConfig(
+        environment=EnvironmentConfig(
+            map=MapConfig(width=2, height=2),
+            ru=RUConfig(
+                count=1,
+                initial_battery=10.0,
+                initial_status=RUStatus.ACTIVE,
+                zero_user_consumption=1.0,
+                one_user_consumption=2.0,
+                multi_user_consumption_per_user=1.5,
+                sleep_consumption=0.5,
+                coverage_radius=1.0,
+            ),
+            user_count=1,
+            random_seed=7,
+        ),
+        controller=ControllerConfig(kind=ControllerKind.ALWAYS_ACTIVE),
+        logging=LoggingConfig(
+            logger_name="test",
+            level=20,
+            destination="stdout",
+            format="json",
+            include_logger_name=False,
+            include_log_level=False,
+            timestamp=TimestampConfig(key="logged_at", format="iso", utc=True),
+            cache_loggers_on_first_use=False,
+            propagate=False,
+        ),
+        simulation=SimulationConfig(
+            steps=1,
+            metrics=MetricsConfig(
+                collectors=(MetricKind.AVERAGE_EMERGENCY_QOS,),
+                minimum_emergency_service_fraction=0.5,
+                minimum_service_link_weight=0.0,
+            ),
+        ),
+    )
 
 
 class FakeEnvironment:
