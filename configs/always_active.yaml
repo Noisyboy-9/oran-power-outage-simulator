@@ -33,7 +33,7 @@ controller:
   kind: always_active
 
 simulation:
-  steps: 100
+  steps: 20
   metrics:
     collectors:
       - average_emergency_qos
