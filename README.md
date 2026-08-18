@@ -111,6 +111,25 @@ logging, constructs configured metric collectors, starts `Simulation`, and
 finalizes each collector after the simulation completes. It does not define
 metric result output formatting.
 
+## Batch Runs
+
+Batch configurations are organized into ten directories, from
+`configs/iteration-01/` through `configs/iteration-10/`. Each directory
+contains `always_active.yaml`, `staggered_active.yaml`, and
+`threshold_staggered_active.yaml`. All policies in one directory use the
+same random seed to support a fair comparison.
+
+Run the complete batch with:
+
+```bash
+make run-all
+```
+
+This runs thirty simulations. For example, the `always_active` policy in the
+first iteration reads `configs/iteration-01/always_active.yaml` and writes to
+`outputs/iteration-01/always_active/`. Each output leaf contains the metric
+JSON files configured for that simulation.
+
 ## Logging
 
 With `configs/default.yaml`, the simulator uses `structlog` to emit
