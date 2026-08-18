@@ -191,13 +191,20 @@ Install [uv](https://docs.astral.sh/uv/), then synchronize the development envir
 uv sync --dev
 ```
 
-Run project tools through uv:
+The Makefile provides common project commands:
 
 ```bash
-uv run pytest
-uv run ruff check .
-uv run ruff format .
+make test
+make run
+make lint
+make format
+make check
 ```
+
+`make run` uses `configs/default.yaml`. To use a different configuration, set
+`CONFIG`, for example `make run CONFIG=configs/experiment.yaml`. Run `make
+help` to see all available targets, including `make sync` for environment
+synchronization.
 
 ## Structure
 
