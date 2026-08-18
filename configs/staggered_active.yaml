@@ -33,7 +33,7 @@ controller:
   kind: staggered_active
 
 simulation:
-  steps: 50
+  steps: 30
   metrics:
     collectors:
       - average_emergency_qos
