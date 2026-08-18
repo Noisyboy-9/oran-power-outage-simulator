@@ -101,9 +101,11 @@ Automated coverage will assert that:
   configurations;
 - every YAML configuration loads successfully;
 - the policies within an iteration have identical random seeds;
-- the ten iteration seeds are distinct and equal to `1` through `10`; and
-- a dry run of `make run-all` expands to all thirty expected configuration and
-  output-path pairs in the specified order.
+- the ten iteration seeds are distinct and equal to `1` through `10`.
+
+The Makefile and README are intentionally not covered by automated tests in
+this project. Their batch-run behavior and published instructions are verified
+manually when the feature changes.
 
 The README will document the numbered configuration hierarchy, the purpose of
 shared seeds across policies, `make run-all`, and the output directory layout.

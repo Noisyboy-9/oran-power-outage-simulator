@@ -311,3 +311,12 @@ verification correction is required, first add a focused failing regression
 test, confirm its expected failure, make the smallest correction, rerun the
 covering test and the full verification set, then commit only that correction
 with a `test:` or `fix:` subject that describes it.
+
+## Implementation Amendment (2026-08-18)
+
+The user requested that this project contain no automated tests for the
+Makefile or README. Consequently, `tests/test_makefile.py` and the
+README-content assertion originally added to `tests/test_batch_configurations.py`
+are removed. The remaining configuration-hierarchy tests continue to verify
+the YAML inputs and their seeds; `make run-all` and the README are checked
+manually when changed.

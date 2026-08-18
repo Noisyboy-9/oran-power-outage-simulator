@@ -42,15 +42,3 @@ def test_flat_policy_configurations_are_absent() -> None:
         assert not (configs_path / f"{policy}.yaml").exists()
 
     assert (configs_path / "default.yaml").exists()
-
-
-def test_readme_documents_batch_runs() -> None:
-    readme = (PROJECT_ROOT / "README.md").read_text()
-
-    for expected_text in (
-        "make run-all",
-        "configs/iteration-01/always_active.yaml",
-        "outputs/iteration-01/always_active/",
-        "same random seed",
-    ):
-        assert expected_text in readme
