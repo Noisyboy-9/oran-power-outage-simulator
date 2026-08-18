@@ -30,8 +30,7 @@ environment:
   random_seed: 42
 
 controller:
-  kind: threshold_staggered_active
-  threshold_percentage: 50.0
+  kind: always_active
 
 simulation:
   steps: 100
