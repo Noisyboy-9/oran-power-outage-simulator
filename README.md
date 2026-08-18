@@ -227,10 +227,15 @@ make format
 make check
 ```
 
-`make run` uses `configs/default.yaml`. To use a different configuration, set
-`CONFIG`, for example `make run CONFIG=configs/experiment.yaml`. Run `make
-help` to see all available targets, including `make sync` for environment
-synchronization.
+`make run` uses `configs/default.yaml` and writes metric files to
+`outputs/default`. Override either value as needed, for example:
+
+```bash
+make run CONFIG=configs/experiment.yaml METRICS_OUTPUT_PATH=outputs/experiment
+```
+
+Run `make help` to see all available targets, including `make sync` for
+environment synchronization.
 
 ## Structure
 
