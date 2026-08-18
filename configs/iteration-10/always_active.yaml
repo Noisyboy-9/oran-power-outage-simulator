@@ -27,7 +27,7 @@ environment:
     user_capacity: 100
     coverage_radius: 8.0
   user_count: 30
-  random_seed: 42
+  random_seed: 10
 
 controller:
   kind: always_active

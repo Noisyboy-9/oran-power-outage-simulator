@@ -1,0 +1,43 @@
+logging:
+  logger_name: simulator
+  level: INFO
+  destination: stdout
+  format: json
+  include_logger_name: true
+  include_log_level: true
+  timestamp:
+    key: logged_at
+    format: iso
+    utc: true
+  cache_loggers_on_first_use: true
+  propagate: false
+
+environment:
+  map:
+    width: 20
+    height: 20
+  ru:
+    count: 5
+    initial_battery: 100.0
+    initial_status: active
+    zero_user_consumption: 1.0
+    one_user_consumption: 2.0
+    multi_user_consumption_per_user: 1.5
+    sleep_consumption: 0.5
+    user_capacity: 100
+    coverage_radius: 8.0
+  user_count: 30
+  random_seed: 2
+
+controller:
+  kind: staggered_active
+
+simulation:
+  steps: 30
+  metrics:
+    collectors:
+      - average_emergency_qos
+      - average_ru_battery_depletion_time
+      - network_lifetime
+    minimum_emergency_service_fraction: 0.8
+    minimum_service_link_weight: 0.0
