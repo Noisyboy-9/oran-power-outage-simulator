@@ -222,6 +222,7 @@ The Makefile provides common project commands:
 ```bash
 make test
 make run
+make run-all
 make lint
 make format
 make check
@@ -233,6 +234,9 @@ make check
 ```bash
 make run CONFIG=configs/experiment.yaml METRICS_OUTPUT_PATH=outputs/experiment
 ```
+
+Use `make run-all` to run all three policy scenarios, writing metrics to a
+separate directory for each policy.
 
 Run `make help` to see all available targets, including `make sync` for
 environment synchronization.
