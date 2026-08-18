@@ -34,7 +34,7 @@ controller:
   threshold_percentage: 50.0
 
 simulation:
-  steps: 20
+  steps: 50
   metrics:
     collectors:
       - average_emergency_qos
