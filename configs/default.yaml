@@ -18,7 +18,7 @@ environment:
     height: 20
   ru:
     count: 5
-    initial_battery: 100.0
+    initial_battery: 250.0
     initial_status: active
     zero_user_consumption: 1.0
     one_user_consumption: 2.0
@@ -34,11 +34,11 @@ controller:
   threshold_percentage: 50.0
 
 simulation:
-  steps: 30
+  steps: 100
   metrics:
     collectors:
       - average_emergency_qos
       - average_ru_battery_depletion_time
       - network_lifetime
-    minimum_emergency_service_fraction: 0.8
+    minimum_emergency_service_fraction: 0.7
     minimum_service_link_weight: 0.0
